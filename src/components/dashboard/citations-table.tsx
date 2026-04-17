@@ -13,73 +13,66 @@ export function CitationsTable({ domains }: CitationsTableProps) {
   const max = Math.max(1, ...domains.map((d) => d.citation_count));
 
   return (
-    <Card className="border-border bg-card shadow-sm">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg text-foreground">
-          <span className="h-2 w-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500" />
-          引用元ドメイン Top 10（直近4週）
-        </CardTitle>
-        <p className="text-xs text-muted-foreground">
-          各LLMが最も頻繁に引用しているソース
-        </p>
+    <Card className="border border-border bg-card">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold text-foreground">
+            引用元ドメイン Top 10
+          </CardTitle>
+          <span className="text-[10px] text-muted-foreground">直近4週</span>
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         {domains.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="py-6 text-center text-xs text-muted-foreground">
             引用元データがまだありません
           </p>
         ) : (
-          <ol className="space-y-3">
+          <ol className="space-y-2.5">
             {domains.map((d, i) => {
               const widthPct = (d.citation_count / max) * 100;
               return (
                 <li key={d.domain}>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-xs font-bold text-white shadow-sm">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-500/12 text-[10px] font-bold text-amber-400">
                       {i + 1}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 truncate">
-                          <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          <span className="truncate text-sm font-medium text-foreground">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1 truncate">
+                          <Globe className="h-3 w-3 shrink-0 text-muted-foreground/50" />
+                          <span className="truncate text-xs font-medium text-foreground">
                             {d.domain}
                           </span>
                           <a
                             href={`https://${d.domain}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-muted-foreground transition-colors hover:text-primary"
+                            className="text-muted-foreground/40 hover:text-primary"
                           >
-                            <ExternalLink className="h-3 w-3" />
+                            <ExternalLink className="h-2.5 w-2.5" />
                           </a>
                         </div>
-                        <div className="shrink-0 text-xs font-semibold text-foreground/80">
-                          {d.citation_count} 件
-                        </div>
+                        <span className="shrink-0 text-[11px] font-semibold text-foreground/70">
+                          {d.citation_count}件
+                        </span>
                       </div>
-                      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div className="mt-1 h-[3px] w-full overflow-hidden rounded-full bg-white/[0.04]">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all"
                           style={{ width: `${widthPct}%` }}
                         />
                       </div>
-                      <div className="mt-1.5 flex flex-wrap gap-1">
+                      <div className="mt-1 flex flex-wrap gap-0.5">
                         {d.providers.map((p) => (
                           <Badge
                             key={p}
                             variant="secondary"
-                            className="border-border bg-muted text-[10px] text-muted-foreground"
+                            className="border-0 bg-white/[0.04] px-1 py-0 text-[9px] text-muted-foreground"
                           >
                             {PROVIDER_LABELS[p as LLMProvider] ?? p}
                           </Badge>
                         ))}
-                        <Badge
-                          variant="outline"
-                          className="border-primary/30 bg-primary/10 text-[10px] text-primary"
-                        >
-                          {d.distinct_brands} ブランドで引用
-                        </Badge>
                       </div>
                     </div>
                   </div>

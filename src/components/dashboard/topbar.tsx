@@ -1,4 +1,4 @@
-import { Bell, Search, Settings } from "lucide-react";
+import { Bell, ChevronDown, Moon, Search } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ja } from "date-fns/locale";
 
@@ -12,40 +12,49 @@ export function Topbar({ lastWeekStart }: TopbarProps) {
     : "データ未取得";
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-6">
-      <h1 className="text-lg font-bold text-foreground">ダッシュボード</h1>
-
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-sidebar px-5">
+      {/* Left: page title + last updated */}
       <div className="flex items-center gap-4">
+        <h1 className="text-[15px] font-semibold text-foreground">Dashboard</h1>
+        <span className="hidden text-[11px] text-muted-foreground lg:inline">
+          最終更新: {formatted}
+        </span>
+      </div>
+
+      {/* Right: search + actions + user */}
+      <div className="flex items-center gap-2">
+        {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
-            placeholder="検索..."
-            className="h-9 w-56 rounded-xl border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder="Search here.."
+            className="h-8 w-44 rounded-lg border border-border bg-background pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
           />
         </div>
 
-        <div className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs text-muted-foreground">
-          最終更新: {formatted}
-        </div>
-
-        <button className="flex h-9 w-9 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+        {/* Icon buttons */}
+        <button className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
           <Bell className="h-4 w-4" />
         </button>
-
-        <button className="flex h-9 w-9 items-center justify-center rounded-xl border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-          <Settings className="h-4 w-4" />
+        <button className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+          <Moon className="h-4 w-4" />
         </button>
 
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+        {/* Divider */}
+        <div className="mx-1 h-6 w-px bg-border" />
+
+        {/* User */}
+        <button className="flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-accent">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-primary to-indigo-400 text-[10px] font-bold text-white">
             FT
           </div>
-          <div className="hidden md:block">
-            <div className="text-sm font-medium text-foreground">FTG Admin</div>
-            <div className="text-[10px] text-muted-foreground">管理者</div>
+          <div className="hidden text-left md:block">
+            <div className="text-xs font-medium leading-tight text-foreground">FTG Admin</div>
+            <div className="text-[10px] leading-tight text-muted-foreground">管理者</div>
           </div>
-        </div>
+          <ChevronDown className="hidden h-3 w-3 text-muted-foreground md:block" />
+        </button>
       </div>
     </header>
   );

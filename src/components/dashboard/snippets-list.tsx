@@ -18,55 +18,58 @@ export function SnippetsList({ results }: SnippetsListProps) {
     });
 
   return (
-    <Card className="border-border bg-card shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-lg text-foreground">LLM紹介文サンプル</CardTitle>
-        <p className="text-xs text-muted-foreground">
+    <Card className="border border-border bg-card">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold text-foreground">LLM紹介文サンプル</CardTitle>
+          <span className="cursor-pointer text-xs text-primary hover:underline">See all</span>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
           各LLMがブランドをどう紹介しているか
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         {mentionedWithSnippet.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="py-6 text-center text-xs text-muted-foreground">
             紹介文データがまだありません
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {mentionedWithSnippet.map((r) => {
               const bg =
                 r.sentiment === "positive"
-                  ? "bg-emerald-500/10 border-emerald-500/20"
+                  ? "bg-emerald-500/[0.05] border-emerald-500/10"
                   : r.sentiment === "negative"
-                    ? "bg-rose-500/10 border-rose-500/20"
-                    : "bg-muted border-border";
+                    ? "bg-rose-500/[0.05] border-rose-500/10"
+                    : "bg-white/[0.02] border-white/[0.04]";
               return (
                 <div
                   key={r.id}
-                  className={`rounded-2xl border p-4 transition-colors ${bg}`}
+                  className={`rounded-lg border p-3 transition-colors ${bg}`}
                 >
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                     <Badge
                       style={{ backgroundColor: PROVIDER_COLORS[r.llm_provider] }}
-                      className="text-[10px] font-semibold text-white"
+                      className="px-1.5 py-0 text-[9px] font-semibold text-white"
                     >
                       {PROVIDER_LABELS[r.llm_provider]}
                     </Badge>
-                    <span className="text-sm font-semibold text-foreground">
+                    <span className="text-xs font-semibold text-foreground">
                       {r.brand_name}
                     </span>
-                    <span className="text-xs text-muted-foreground">「{r.keyword}」</span>
+                    <span className="text-[10px] text-muted-foreground">「{r.keyword}」</span>
                     {r.rank && (
                       <Badge
                         variant="outline"
-                        className="ml-auto border-primary/30 bg-primary/10 text-xs text-primary"
+                        className="ml-auto border-primary/15 bg-primary/8 px-1.5 py-0 text-[10px] text-primary"
                       >
                         #{r.rank}
                       </Badge>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    <MessageSquareQuote className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <p className="text-sm leading-relaxed text-foreground/80">
+                  <div className="flex gap-1.5">
+                    <MessageSquareQuote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
+                    <p className="text-xs leading-relaxed text-foreground/70">
                       {r.snippet}
                     </p>
                   </div>

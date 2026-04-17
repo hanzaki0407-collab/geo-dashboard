@@ -56,41 +56,52 @@ export function TrendChart({ rates }: TrendChartProps) {
     .sort((a, b) => (a.week as string).localeCompare(b.week as string));
 
   return (
-    <Card className="border-border bg-card shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-lg text-foreground">LLM別 言及率推移（直近12週）</CardTitle>
-        <p className="text-xs text-muted-foreground">各LLMでのブランド言及率の週次推移</p>
+    <Card className="border border-border bg-card">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-sm font-semibold text-foreground">
+              LLM別 言及率推移
+            </CardTitle>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">各LLMでのブランド言及率の週次推移</p>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent>
-        <div className="h-72 w-full">
+      <CardContent className="pt-0">
+        <div className="h-56 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+            <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
               <XAxis
                 dataKey="weekLabel"
-                tick={{ fontSize: 11, fill: "#8b8b9e" }}
-                axisLine={{ stroke: "rgba(255,255,255,0.06)" }}
+                tick={{ fontSize: 10, fill: "#6b6b80" }}
+                axisLine={{ stroke: "rgba(255,255,255,0.04)" }}
                 tickLine={false}
               />
               <YAxis
                 unit="%"
-                tick={{ fontSize: 11, fill: "#8b8b9e" }}
-                axisLine={{ stroke: "rgba(255,255,255,0.06)" }}
+                tick={{ fontSize: 10, fill: "#6b6b80" }}
+                axisLine={{ stroke: "rgba(255,255,255,0.04)" }}
                 tickLine={false}
                 domain={[0, 100]}
               />
               <Tooltip
                 contentStyle={{
-                  borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  fontSize: 12,
-                  backgroundColor: "#1a1a24",
-                  color: "#f0f0f0",
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.06)",
+                  fontSize: 11,
+                  backgroundColor: "rgba(20, 20, 32, 0.95)",
+                  color: "#e8e8ef",
+                  backdropFilter: "blur(8px)",
+                  padding: "8px 12px",
                 }}
-                formatter={(value, name) => [`${value}%`, PROVIDER_LABELS[name as LLMProvider] ?? String(name)]}
+                formatter={(value, name) => [
+                  `${value}%`,
+                  PROVIDER_LABELS[name as LLMProvider] ?? String(name),
+                ]}
               />
               <Legend
-                wrapperStyle={{ fontSize: 12, color: "#8b8b9e" }}
+                wrapperStyle={{ fontSize: 11, color: "#6b6b80", paddingTop: 8 }}
                 formatter={(value) => PROVIDER_LABELS[value as LLMProvider] ?? value}
               />
               {PROVIDERS.map((p) => (
@@ -99,16 +110,16 @@ export function TrendChart({ rates }: TrendChartProps) {
                   type="monotone"
                   dataKey={p}
                   stroke={PROVIDER_COLORS[p]}
-                  strokeWidth={2.5}
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
+                  strokeWidth={2}
+                  dot={{ r: 2.5, strokeWidth: 0 }}
+                  activeDot={{ r: 4 }}
                 />
               ))}
             </LineChart>
           </ResponsiveContainer>
         </div>
         {data.length === 0 && (
-          <p className="mt-4 text-center text-sm text-muted-foreground">
+          <p className="mt-3 text-center text-xs text-muted-foreground">
             データがありません。週次収集を実行するとここにグラフが表示されます。
           </p>
         )}

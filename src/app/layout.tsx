@@ -24,7 +24,7 @@ export default function RootLayout({
     <html lang="ja" className={`${notoSansJp.variable} h-full antialiased`}>
       <body className="flex h-full bg-background font-sans text-foreground">
         <Sidebar />
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden bg-background">
           {children}
         </div>
       </body>

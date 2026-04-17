@@ -44,25 +44,27 @@ export function HeatmapMatrix({ results }: HeatmapProps) {
   );
 
   return (
-    <Card className="border-border bg-card shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-lg text-foreground">ブランド × LLM 言及マトリクス</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          色付きセル: 言及あり。ホバーで順位と感情を表示。
+    <Card className="border border-border bg-card">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-semibold text-foreground">
+          ブランド × LLM 言及マトリクス
+        </CardTitle>
+        <p className="text-[11px] text-muted-foreground">
+          色付きセル: 言及あり / ホバーで順位と感情を表示
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="sticky left-0 bg-card px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="sticky left-0 bg-card px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   ブランド / キーワード
                 </th>
                 {PROVIDERS.map((p) => (
                   <th
                     key={p}
-                    className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                    className="px-2 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
                   >
                     {PROVIDER_LABELS[p]}
                   </th>
@@ -75,18 +77,18 @@ export function HeatmapMatrix({ results }: HeatmapProps) {
                 return (
                   <tr
                     key={key}
-                    className="border-t border-border transition-colors hover:bg-muted/50"
+                    className="border-t border-white/[0.03] transition-colors hover:bg-white/[0.02]"
                   >
-                    <td className="sticky left-0 bg-card px-4 py-3 text-left">
-                      <div className="font-medium text-foreground">{info.brand}</div>
-                      <div className="text-xs text-muted-foreground">
+                    <td className="sticky left-0 bg-card px-3 py-2.5 text-left">
+                      <div className="text-xs font-medium text-foreground">{info.brand}</div>
+                      <div className="text-[10px] text-muted-foreground">
                         {info.company} · {info.keyword}
                       </div>
                     </td>
                     {PROVIDERS.map((p) => {
                       const cell = cells.get(p);
                       return (
-                        <td key={p} className="px-2 py-3 text-center">
+                        <td key={p} className="px-2 py-2.5 text-center">
                           <CellPill cell={cell ?? null} />
                         </td>
                       );
@@ -98,7 +100,7 @@ export function HeatmapMatrix({ results }: HeatmapProps) {
                 <tr>
                   <td
                     colSpan={PROVIDERS.length + 1}
-                    className="px-4 py-8 text-center text-sm text-muted-foreground"
+                    className="px-3 py-6 text-center text-xs text-muted-foreground"
                   >
                     データがありません
                   </td>
@@ -116,39 +118,39 @@ function CellPill({ cell }: { cell: Cell | null }) {
   if (!cell) {
     return (
       <div
-        className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground/50"
+        className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.03] text-muted-foreground/30"
         title="未計測"
       >
-        <MinusCircle className="h-4 w-4" />
+        <MinusCircle className="h-3.5 w-3.5" />
       </div>
     );
   }
   if (!cell.mentioned) {
     return (
       <div
-        className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground"
+        className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.03] text-muted-foreground/50"
         title="言及なし"
       >
-        <XCircle className="h-4 w-4" />
+        <XCircle className="h-3.5 w-3.5" />
       </div>
     );
   }
 
   const sentimentClass =
     cell.sentiment === "positive"
-      ? "from-emerald-500 to-teal-500 shadow-emerald-500/30"
+      ? "from-emerald-500 to-teal-500"
       : cell.sentiment === "negative"
-        ? "from-rose-500 to-pink-500 shadow-rose-500/30"
-        : "from-sky-500 to-indigo-500 shadow-sky-500/30";
+        ? "from-rose-500 to-pink-500"
+        : "from-sky-500 to-indigo-500";
 
   return (
     <div className="flex justify-center">
       <div
-        className={`flex h-9 min-w-9 items-center justify-center gap-1 rounded-xl bg-gradient-to-br ${sentimentClass} px-2 text-white shadow-md`}
+        className={`flex h-8 min-w-8 items-center justify-center gap-0.5 rounded-lg bg-gradient-to-br ${sentimentClass} px-1.5 text-white`}
         title={`言及あり${cell.rank ? ` · 順位${cell.rank}位` : ""}${cell.sentiment ? ` · ${cell.sentiment}` : ""}`}
       >
-        <CheckCircle2 className="h-4 w-4" />
-        {cell.rank && <span className="text-[11px] font-bold">#{cell.rank}</span>}
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        {cell.rank && <span className="text-[10px] font-bold">#{cell.rank}</span>}
       </div>
     </div>
   );
@@ -156,21 +158,21 @@ function CellPill({ cell }: { cell: Cell | null }) {
 
 export function HeatmapLegend() {
   return (
-    <div className="flex flex-wrap gap-2 text-xs">
-      <Badge variant="outline" className="gap-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
-        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-        ポジティブ言及
+    <div className="flex flex-wrap gap-1.5 text-[11px]">
+      <Badge variant="outline" className="gap-1 border-emerald-500/20 bg-emerald-500/8 text-emerald-400">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        ポジティブ
       </Badge>
-      <Badge variant="outline" className="gap-1.5 border-sky-500/30 bg-sky-500/10 text-sky-400">
-        <span className="h-2 w-2 rounded-full bg-sky-500" />
-        中立言及
+      <Badge variant="outline" className="gap-1 border-sky-500/20 bg-sky-500/8 text-sky-400">
+        <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+        中立
       </Badge>
-      <Badge variant="outline" className="gap-1.5 border-rose-500/30 bg-rose-500/10 text-rose-400">
-        <span className="h-2 w-2 rounded-full bg-rose-500" />
-        ネガティブ言及
+      <Badge variant="outline" className="gap-1 border-rose-500/20 bg-rose-500/8 text-rose-400">
+        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+        ネガティブ
       </Badge>
-      <Badge variant="outline" className="gap-1.5 border-border text-muted-foreground">
-        <span className="h-2 w-2 rounded-full bg-muted-foreground/50" />
+      <Badge variant="outline" className="gap-1 border-white/8 text-muted-foreground">
+        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
         言及なし
       </Badge>
     </div>

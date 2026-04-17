@@ -12,7 +12,7 @@ import {
 
 const mainMenu = [
   { label: "ダッシュボード", icon: Home, href: "#", active: true },
-  { label: "ブランド管理", icon: Building2, href: "#brands" },
+  { label: "ブランド管理", icon: Building2, href: "#brands", badge: 20 },
   { label: "分析レポート", icon: BarChart3, href: "#analytics" },
   { label: "引用元分析", icon: Link2, href: "#citations" },
   { label: "スニペット", icon: FileText, href: "#snippets" },
@@ -25,52 +25,68 @@ const dataMenu = [
 
 export function Sidebar() {
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
-      <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5">
+    <aside className="flex w-[240px] shrink-0 flex-col bg-sidebar">
+      {/* Logo */}
+      <div className="flex h-16 items-center gap-2.5 px-5">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
           <Globe className="h-4 w-4 text-primary-foreground" />
         </div>
-        <span className="text-base font-bold text-foreground">GEO Dashboard</span>
+        <span className="text-[15px] font-bold tracking-tight text-foreground">
+          GEO Dashboard
+        </span>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
-        <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-sidebar-foreground">
+      <nav className="flex-1 overflow-y-auto px-3 pt-4">
+        {/* Main Menu */}
+        <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/50">
           Main Menu
         </div>
-        <ul className="space-y-1">
+        <ul className="space-y-0.5">
           {mainMenu.map((item) => {
             const Icon = item.icon;
             return (
               <li key={item.label}>
                 <a
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors ${
                     item.active
                       ? "bg-primary text-primary-foreground"
                       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
+                  <Icon className="h-[17px] w-[17px]" />
+                  <span className="flex-1">{item.label}</span>
+                  {"badge" in item && item.badge && (
+                    <span
+                      className={`flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold ${
+                        item.active
+                          ? "bg-white/25 text-white"
+                          : "bg-primary/15 text-primary"
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
                 </a>
               </li>
             );
           })}
         </ul>
 
-        <div className="mb-2 mt-6 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-sidebar-foreground">
-          データ収集
+        {/* Data Collection */}
+        <div className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/50">
+          Data Collection
         </div>
-        <ul className="space-y-1">
+        <ul className="space-y-0.5">
           {dataMenu.map((item) => {
             const Icon = item.icon;
             return (
               <li key={item.label}>
                 <a
                   href={item.href}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-[17px] w-[17px]" />
                   {item.label}
                 </a>
               </li>
@@ -79,13 +95,14 @@ export function Sidebar() {
         </ul>
       </nav>
 
-      <div className="border-t border-sidebar-border p-3">
+      {/* Bottom */}
+      <div className="p-3">
         <a
           href="#"
-          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
-          <LogOut className="h-4 w-4" />
-          ログアウト
+          <LogOut className="h-[17px] w-[17px]" />
+          Log Out
         </a>
       </div>
     </aside>

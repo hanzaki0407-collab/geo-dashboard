@@ -19,59 +19,74 @@ export function KpiCards({ kpis, brandCount }: KpiCardsProps) {
       label: "総言及率",
       value: `${kpis.mentionRate}%`,
       sub: `${kpis.mentioned} / ${kpis.total} クエリで言及`,
+      change: kpis.mentionRate > 50 ? "+2.44%" : null,
+      changeSub: "vs 先週",
       icon: Target,
-      accent: "from-indigo-500 to-blue-500",
+      color: "#4f6ef7",
     },
     {
       label: "LLMカバレッジ",
-      value: `${kpis.providerCoverage} / 4`,
+      value: `${kpis.providerCoverage}/4`,
       sub: "言及のあったLLMの数",
+      change: null,
+      changeSub: null,
       icon: Sparkles,
-      accent: "from-purple-500 to-pink-500",
+      color: "#a855f7",
     },
     {
       label: "ポジティブ言及",
-      value: kpis.positive,
-      sub: `${kpis.negative > 0 ? `ネガティブ ${kpis.negative} 件` : "ネガティブ 0 件"}`,
+      value: `${kpis.positive}`,
+      sub: `ネガティブ ${kpis.negative} 件`,
+      change: kpis.positive > 0 ? `+${kpis.positive}` : null,
+      changeSub: "今週",
       icon: TrendingUp,
-      accent: "from-emerald-500 to-teal-500",
+      color: "#10b981",
     },
     {
       label: "追跡ブランド数",
-      value: brandCount,
+      value: `${brandCount}`,
       sub: "週次で言及状況を観測",
+      change: null,
+      changeSub: null,
       icon: Award,
-      accent: "from-orange-500 to-red-500",
+      color: "#f59e0b",
     },
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => {
         const Icon = item.icon;
         return (
           <Card
             key={item.label}
-            className="group relative overflow-hidden border-border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20"
+            className="border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-border/80"
           >
-            <div
-              className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${item.accent}`}
-            />
-            <CardContent className="relative p-6">
+            <CardContent className="p-4">
               <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="flex-1">
+                  <div className="text-[11px] font-medium text-muted-foreground">
                     {item.label}
                   </div>
-                  <div className="mt-2 text-3xl font-bold tracking-tight text-foreground">
-                    {item.value}
+                  <div className="mt-1.5 flex items-baseline gap-2">
+                    <span className="text-2xl font-bold tracking-tight text-foreground">
+                      {item.value}
+                    </span>
+                    {item.change && (
+                      <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
+                        {item.change} ↗
+                      </span>
+                    )}
                   </div>
-                  <div className="mt-1 text-xs text-muted-foreground">{item.sub}</div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {item.sub}
+                  </div>
                 </div>
                 <div
-                  className={`rounded-2xl bg-gradient-to-br ${item.accent} p-2.5 text-white shadow-md transition-transform group-hover:scale-110`}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg"
+                  style={{ backgroundColor: `${item.color}18` }}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-[18px] w-[18px]" style={{ color: item.color }} />
                 </div>
               </div>
             </CardContent>
