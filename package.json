@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:connections": "tsx scripts/test-connections.ts"
+    "test:connections": "tsx scripts/test-connections.ts",
+    "collect": "tsx scripts/collect.ts",
+    "collect:dry": "tsx scripts/collect.ts --dry-run"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",

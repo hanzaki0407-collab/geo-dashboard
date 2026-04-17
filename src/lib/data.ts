@@ -48,6 +48,7 @@ export interface LatestResultRow {
   company_name: string;
   keyword: string;
   llm_provider: LLMProvider;
+  locale: string;
   mentioned: boolean;
   rank: number | null;
   snippet: string | null;
@@ -60,6 +61,7 @@ export interface MentionRateRow {
   brand_name: string;
   company_name: string;
   llm_provider: LLMProvider;
+  locale: string;
   week_start: string;
   mentioned_count: number;
   total_count: number;
@@ -71,6 +73,21 @@ export interface TopDomainRow {
   citation_count: number;
   distinct_brands: number;
   providers: string[];
+}
+
+export interface MentionsByCountryRow {
+  locale: string;
+  country_code: string;
+  country_name: string;
+  country_name_ja: string;
+  flag: string;
+  map_center_x: number;
+  map_center_y: number;
+  map_radius: number;
+  total_queries: number;
+  mentioned_count: number;
+  mention_rate: number;
+  distinct_brands: number;
 }
 
 export async function fetchCompanies() {
@@ -98,16 +115,22 @@ export async function fetchLatestRun() {
   return (data?.[0] ?? null) as WeeklyRunRow | null;
 }
 
-export async function fetchLatestResults() {
+export async function fetchLatestResults(locale = "ja") {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from("v_latest_results").select("*");
+  const { data, error } = await supabase
+    .from("v_latest_results")
+    .select("*")
+    .eq("locale", locale);
   if (error) throw error;
   return (data ?? []) as LatestResultRow[];
 }
 
-export async function fetchMentionRates() {
+export async function fetchMentionRates(locale = "ja") {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from("v_mention_rate_by_provider").select("*");
+  const { data, error } = await supabase
+    .from("v_mention_rate_by_provider")
+    .select("*")
+    .eq("locale", locale);
   if (error) throw error;
   return (data ?? []) as MentionRateRow[];
 }
@@ -120,6 +143,16 @@ export async function fetchTopDomains(limit = 10) {
     .limit(limit);
   if (error) throw error;
   return (data ?? []) as TopDomainRow[];
+}
+
+export async function fetchMentionsByCountry() {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("v_mentions_by_country")
+    .select("*")
+    .neq("locale", "ja");
+  if (error) throw error;
+  return (data ?? []) as MentionsByCountryRow[];
 }
 
 export function computeKpis(results: LatestResultRow[]) {
