@@ -1,148 +1,372 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Globe } from "lucide-react";
+import createGlobe from "cobe";
 import type { MentionsByCountryRow } from "@/lib/data";
 
-/* ── Dot-matrix world map coordinates (simplified) ────────────────
-   Each dot is [x, y] on a 200×100 viewport.
-   Generated from a simplified world boundary set. */
-
-const MAP_DOTS: [number, number][] = [
-  // North America
-  ...[
-    [30,18],[32,18],[34,18],[36,18],[28,20],[30,20],[32,20],[34,20],[36,20],[38,20],
-    [26,22],[28,22],[30,22],[32,22],[34,22],[36,22],[38,22],[40,22],
-    [24,24],[26,24],[28,24],[30,24],[32,24],[34,24],[36,24],[38,24],[40,24],
-    [22,26],[24,26],[26,26],[28,26],[30,26],[32,26],[34,26],[36,26],[38,26],[40,26],
-    [22,28],[24,28],[26,28],[28,28],[30,28],[32,28],[34,28],[36,28],[38,28],
-    [24,30],[26,30],[28,30],[30,30],[32,30],[34,30],[36,30],[38,30],
-    [26,32],[28,32],[30,32],[32,32],[34,32],[36,32],
-    [28,34],[30,34],[32,34],[34,34],[36,34],
-    [30,36],[32,36],[34,36],
-  ] as [number, number][],
-  // Central America & Caribbean
-  ...[
-    [32,38],[34,38],[30,40],[32,40],
-  ] as [number, number][],
-  // South America
-  ...[
-    [42,42],[44,42],[46,42],[40,44],[42,44],[44,44],[46,44],[48,44],
-    [38,46],[40,46],[42,46],[44,46],[46,46],[48,46],[50,46],
-    [38,48],[40,48],[42,48],[44,48],[46,48],[48,48],[50,48],
-    [38,50],[40,50],[42,50],[44,50],[46,50],[48,50],[50,50],
-    [40,52],[42,52],[44,52],[46,52],[48,52],
-    [40,54],[42,54],[44,54],[46,54],[48,54],
-    [42,56],[44,56],[46,56],[48,56],
-    [42,58],[44,58],[46,58],
-    [44,60],[46,60],
-    [44,62],[46,62],
-    [46,64],
-  ] as [number, number][],
-  // Europe
-  ...[
-    [90,16],[92,16],[94,16],[96,16],
-    [86,18],[88,18],[90,18],[92,18],[94,18],[96,18],[98,18],
-    [84,20],[86,20],[88,20],[90,20],[92,20],[94,20],[96,20],[98,20],[100,20],
-    [84,22],[86,22],[88,22],[90,22],[92,22],[94,22],[96,22],[98,22],[100,22],
-    [86,24],[88,24],[90,24],[92,24],[94,24],[96,24],[98,24],[100,24],[102,24],
-    [86,26],[88,26],[90,26],[92,26],[94,26],[96,26],[98,26],[100,26],
-    [88,28],[90,28],[92,28],[94,28],[96,28],[98,28],[100,28],
-    [90,30],[92,30],[94,30],[96,30],[98,30],
-  ] as [number, number][],
-  // Africa
-  ...[
-    [88,32],[90,32],[92,32],[94,32],[96,32],
-    [86,34],[88,34],[90,34],[92,34],[94,34],[96,34],[98,34],
-    [86,36],[88,36],[90,36],[92,36],[94,36],[96,36],[98,36],[100,36],
-    [86,38],[88,38],[90,38],[92,38],[94,38],[96,38],[98,38],[100,38],
-    [86,40],[88,40],[90,40],[92,40],[94,40],[96,40],[98,40],[100,40],
-    [88,42],[90,42],[92,42],[94,42],[96,42],[98,42],[100,42],
-    [88,44],[90,44],[92,44],[94,44],[96,44],[98,44],
-    [90,46],[92,46],[94,46],[96,46],[98,46],
-    [90,48],[92,48],[94,48],[96,48],
-    [92,50],[94,50],[96,50],
-    [92,52],[94,52],
-    [94,54],
-  ] as [number, number][],
-  // Asia (West / Middle East)
-  ...[
-    [102,26],[104,26],[106,26],[108,26],[110,26],
-    [100,28],[102,28],[104,28],[106,28],[108,28],[110,28],[112,28],
-    [102,30],[104,30],[106,30],[108,30],[110,30],[112,30],
-    [100,32],[102,32],[104,32],[106,32],[108,32],[110,32],
-  ] as [number, number][],
-  // Asia (Central / East)
-  ...[
-    [112,16],[114,16],[116,16],[118,16],[120,16],
-    [110,18],[112,18],[114,18],[116,18],[118,18],[120,18],[122,18],[124,18],
-    [108,20],[110,20],[112,20],[114,20],[116,20],[118,20],[120,20],[122,20],[124,20],[126,20],
-    [110,22],[112,22],[114,22],[116,22],[118,22],[120,22],[122,22],[124,22],[126,22],[128,22],
-    [112,24],[114,24],[116,24],[118,24],[120,24],[122,24],[124,24],[126,24],[128,24],
-    [112,26],[114,26],[116,26],[118,26],[120,26],[122,26],[124,26],[126,26],[128,26],
-    [114,28],[116,28],[118,28],[120,28],[122,28],[124,28],[126,28],[128,28],[130,28],
-    [114,30],[116,30],[118,30],[120,30],[122,30],[124,30],[126,30],[128,30],[130,30],
-    [116,32],[118,32],[120,32],[122,32],[124,32],[126,32],[128,32],[130,32],
-    [118,34],[120,34],[122,34],[124,34],[126,34],[128,34],
-    [120,36],[122,36],[124,36],[126,36],
-  ] as [number, number][],
-  // Southeast Asia
-  ...[
-    [126,36],[128,36],[130,36],
-    [126,38],[128,38],[130,38],[132,38],
-    [128,40],[130,40],[132,40],[134,40],
-    [130,42],[132,42],[134,42],[136,42],
-    [132,44],[134,44],[136,44],[138,44],
-    [134,46],[136,46],[138,46],[140,46],
-  ] as [number, number][],
-  // Japan & Korea
-  ...[
-    [132,24],[134,24],
-    [132,26],[134,26],
-    [134,28],[136,28],
-    [134,30],[136,30],
-    [136,32],
-  ] as [number, number][],
-  // Taiwan
-  ...[
-    [132,32],[132,34],
-  ] as [number, number][],
-  // Australia
-  ...[
-    [140,52],[142,52],[144,52],[146,52],[148,52],
-    [138,54],[140,54],[142,54],[144,54],[146,54],[148,54],[150,54],
-    [138,56],[140,56],[142,56],[144,56],[146,56],[148,56],[150,56],
-    [140,58],[142,58],[144,58],[146,58],[148,58],[150,58],
-    [142,60],[144,60],[146,60],[148,60],
-    [144,62],[146,62],
-  ] as [number, number][],
-];
+/* ── Region filter ───────────────────────────────────── */
 
 const REGION_FILTERS: Record<string, string[]> = {
-  "全世界": [],
-  "アジア": ["JP", "TW", "KR", "TH", "SG", "HK"],
-  "北米": ["US"],
-  "ヨーロッパ": ["GB"],
-  "オセアニア": ["AU"],
+  "\u5168\u4E16\u754C": [],
+  "\u30A2\u30B8\u30A2": ["TW", "KR", "TH", "SG", "HK"],
+  "\u6B27\u7C73": ["US", "GB"],
 };
-
 const REGIONS = Object.keys(REGION_FILTERS);
 
-function formatNumber(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
+/* ── Country coordinates (lat, lng in degrees) ───────── */
+
+const COUNTRY_COORDS: Record<string, [number, number]> = {
+  JP: [35.68, 139.69],
+  TW: [25.03, 121.57],
+  KR: [37.57, 126.98],
+  US: [40.71, -74.01],
+  TH: [13.76, 100.5],
+  AU: [-33.87, 151.21],
+  SG: [1.35, 103.82],
+  GB: [51.51, -0.13],
+  HK: [22.32, 114.17],
+};
+
+/* ── Color helpers ───────────────────────────────────── */
+
+function getMentionColor(rate: number): [number, number, number] {
+  if (rate >= 60) return [0, 230, 118];
+  if (rate >= 30) return [255, 193, 7];
+  return [255, 69, 58];
 }
+
+function getMentionHex(rate: number): string {
+  if (rate >= 60) return "#00e676";
+  if (rate >= 30) return "#ffc107";
+  return "#ff453a";
+}
+
+/* ── Globe + Sonar ───────────────────────────────────── */
+
+function GlobeCanvas({ markers }: { markers: MentionsByCountryRow[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayRef = useRef<HTMLCanvasElement>(null);
+  const pointerInteracting = useRef<number | null>(null);
+  const pointerInteractionMovement = useRef(0);
+  const phiRef = useRef(0);
+
+  const markerData = useMemo(() => {
+    return markers
+      .map((m, i) => {
+        const coords = COUNTRY_COORDS[m.country_code];
+        if (!coords) return null;
+        return {
+          lat: coords[0],
+          lng: coords[1],
+          color: getMentionColor(m.mention_rate),
+          pulseOffset: i * 0.8,
+        };
+      })
+      .filter(Boolean) as {
+      lat: number;
+      lng: number;
+      color: [number, number, number];
+      pulseOffset: number;
+    }[];
+  }, [markers]);
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    pointerInteracting.current =
+      e.clientX - pointerInteractionMovement.current;
+    if (containerRef.current) containerRef.current.style.cursor = "grabbing";
+  }, []);
+  const onPointerUp = useCallback(() => {
+    pointerInteracting.current = null;
+    if (containerRef.current) containerRef.current.style.cursor = "grab";
+  }, []);
+  const onPointerOut = useCallback(() => {
+    pointerInteracting.current = null;
+    if (containerRef.current) containerRef.current.style.cursor = "grab";
+  }, []);
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (pointerInteracting.current !== null) {
+      pointerInteractionMovement.current =
+        e.clientX - pointerInteracting.current;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!canvasRef.current || !overlayRef.current || !containerRef.current)
+      return;
+
+    const overlayCanvas = overlayRef.current;
+    const ctx = overlayCanvas.getContext("2d");
+
+    let width = containerRef.current.offsetWidth;
+    const onResize = () => {
+      if (containerRef.current) width = containerRef.current.offsetWidth;
+    };
+    window.addEventListener("resize", onResize);
+
+    const globe = createGlobe(canvasRef.current, {
+      devicePixelRatio: 2,
+      width: width * 2,
+      height: width * 2,
+      phi: 3.8,
+      theta: 0.15,
+      dark: 1,
+      diffuse: 1.2,
+      mapSamples: 16000,
+      mapBrightness: 4,
+      baseColor: [0.15, 0.15, 0.25],
+      markerColor: [0.31, 0.43, 0.97],
+      glowColor: [0.12, 0.12, 0.2],
+      markers: [],
+    });
+
+    const THETA = 0.15;
+    const DEG2RAD = Math.PI / 180;
+
+    let animFrame: number;
+    const animate = () => {
+      if (pointerInteracting.current === null) {
+        phiRef.current += 0.003;
+      }
+      const currentPhi =
+        phiRef.current + pointerInteractionMovement.current / 200;
+
+      globe.update({
+        phi: currentPhi,
+        width: width * 2,
+        height: width * 2,
+      });
+
+      if (ctx && markerData.length > 0) {
+        const cw = width * 2;
+        overlayCanvas.width = cw;
+        overlayCanvas.height = cw;
+
+        const time = performance.now() / 1000;
+
+        const cosPhi = Math.cos(currentPhi);
+        const sinPhi = Math.sin(currentPhi);
+        const cosTheta = Math.cos(THETA);
+        const sinTheta = Math.sin(THETA);
+
+        for (const m of markerData) {
+          const latRad = m.lat * DEG2RAD;
+          const lngRad = m.lng * DEG2RAD;
+
+          // Cobe's coordinate system (from source)
+          const cosLat = Math.cos(latRad);
+          const px = cosLat * Math.cos(lngRad);
+          const py = Math.sin(latRad);
+          const pz = -cosLat * Math.sin(lngRad);
+
+          // Place on globe surface (radius 1.0)
+          const ex = px;
+          const ey = py;
+          const ez = pz;
+
+          // Cobe's exact projection (from source function O)
+          const c = cosPhi * ex + sinPhi * ez;
+          const s =
+            sinPhi * sinTheta * ex +
+            cosTheta * ey -
+            cosPhi * sinTheta * ez;
+          const depth =
+            -sinPhi * cosTheta * ex +
+            sinTheta * ey +
+            cosPhi * cosTheta * ez;
+
+          if (depth < 0) continue; // behind globe
+
+          // Screen pixel coords (square canvas, scale=1, no offset)
+          const screenX = ((c + 1) / 2) * cw;
+          const screenY = ((-s + 1) / 2) * cw;
+          const [r, g, b] = m.color;
+          const vis = Math.min(1, depth * 1.8);
+
+          // Sonar pulse rings
+          for (let ring = 0; ring < 3; ring++) {
+            const phase =
+              ((time * 0.7 + m.pulseOffset + ring * 0.5) % 2.0) / 2.0;
+            const ringR = 12 + phase * 80;
+            const alpha = Math.max(0, 1 - phase) * 0.4 * vis;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, ringR, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+          }
+
+          // Glow halo
+          const breathe =
+            Math.sin(time * 2.5 + m.pulseOffset) * 0.25 + 0.75;
+          const glowR = 32 * breathe;
+          const grad = ctx.createRadialGradient(
+            screenX,
+            screenY,
+            0,
+            screenX,
+            screenY,
+            glowR,
+          );
+          grad.addColorStop(0, `rgba(${r},${g},${b},${0.8 * vis})`);
+          grad.addColorStop(0.3, `rgba(${r},${g},${b},${0.25 * vis})`);
+          grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+          ctx.beginPath();
+          ctx.arc(screenX, screenY, glowR, 0, Math.PI * 2);
+          ctx.fillStyle = grad;
+          ctx.fill();
+
+          // Center dot
+          ctx.beginPath();
+          ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${r},${g},${b},${vis})`;
+          ctx.fill();
+
+          // White core
+          ctx.beginPath();
+          ctx.arc(screenX, screenY, 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${0.9 * vis})`;
+          ctx.fill();
+        }
+      }
+
+      animFrame = requestAnimationFrame(animate);
+    };
+    animFrame = requestAnimationFrame(animate);
+
+    return () => {
+      cancelAnimationFrame(animFrame);
+      globe.destroy();
+      window.removeEventListener("resize", onResize);
+    };
+  }, [markers, markerData]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full cursor-grab"
+      style={{ aspectRatio: "1", position: "relative" }}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerOut={onPointerOut}
+      onPointerMove={onPointerMove}
+    >
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 h-full w-full"
+      />
+      <canvas
+        ref={overlayRef}
+        className="pointer-events-none absolute inset-0 h-full w-full"
+      />
+    </div>
+  );
+}
+
+/* ── Sonar legend ────────────────────────────────────── */
+
+function SonarLegend() {
+  return (
+    <div className="mt-3 flex items-center justify-center gap-5 text-[10px] text-muted-foreground">
+      <span className="flex items-center gap-1.5">
+        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#00e676] shadow-[0_0_8px_#00e676]" />
+        High (60%+)
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ffc107] shadow-[0_0_8px_#ffc107]" />
+        Mid (30-59%)
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ff453a] shadow-[0_0_8px_#ff453a]" />
+        Low (&lt;30%)
+      </span>
+    </div>
+  );
+}
+
+/* ── Futuristic country bar ──────────────────────────── */
+
+function CountryBar({
+  country,
+  maxQueries,
+}: {
+  country: MentionsByCountryRow;
+  maxQueries: number;
+}) {
+  const barPct = (country.total_queries / maxQueries) * 100;
+  const color = getMentionHex(country.mention_rate);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span
+            className="flex h-7 w-9 items-center justify-center rounded-md text-[10px] font-black tracking-wider"
+            style={{
+              backgroundColor: `${color}18`,
+              color,
+              border: `1px solid ${color}40`,
+            }}
+          >
+            {country.country_code}
+          </span>
+          <span className="text-sm font-medium text-foreground">
+            {country.country_name_ja}
+          </span>
+        </div>
+        <span className="text-base font-bold tabular-nums" style={{ color }}>
+          {country.mention_rate}%
+        </span>
+      </div>
+      <div className="mt-1.5 flex items-center gap-3">
+        <div className="relative h-3 flex-1 overflow-hidden rounded-sm bg-white/[0.04]">
+          <div className="absolute inset-0 flex">
+            {[...Array(10)].map((_, i) => (
+              <div
+                key={i}
+                className="h-full border-r border-white/[0.04]"
+                style={{ width: "10%" }}
+              />
+            ))}
+          </div>
+          <div
+            className="relative h-full rounded-sm transition-all duration-500"
+            style={{
+              width: `${barPct}%`,
+              background: `linear-gradient(90deg, ${color}90, ${color})`,
+              boxShadow: `0 0 12px ${color}60, inset 0 1px 0 rgba(255,255,255,0.15)`,
+            }}
+          >
+            <div
+              className="absolute inset-0 rounded-sm"
+              style={{
+                background:
+                  "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px)",
+              }}
+            />
+          </div>
+        </div>
+        <span className="w-10 text-right text-[11px] font-medium tabular-nums text-muted-foreground">
+          {country.mentioned_count}/{country.total_queries}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main component ───────────────────────────────────── */
 
 interface WorldHeatmapProps {
   data: MentionsByCountryRow[];
 }
 
 export function WorldHeatmap({ data }: WorldHeatmapProps) {
-  const [region, setRegion] = useState<string>("全世界");
+  const [region, setRegion] = useState<string>("\u5168\u4E16\u754C");
 
   const filtered =
-    region === "全世界"
+    region === "\u5168\u4E16\u754C"
       ? data
       : data.filter((c) => REGION_FILTERS[region]?.includes(c.country_code));
 
@@ -156,10 +380,11 @@ export function WorldHeatmap({ data }: WorldHeatmapProps) {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-sm font-semibold text-foreground">
-              インバウンド言及分析 — 国・地域別
+              {"\u30A4\u30F3\u30D0\u30A6\u30F3\u30C9\u8A00\u53CA\u5206\u6790"}{" "}
+              {"\u2014"} {"\u56FD\u30FB\u5730\u57DF\u5225"}
             </CardTitle>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              各国の言語でLLMに問い合わせた際のブランド言及状況
+              {"\u5404\u56FD\u306E\u8A00\u8A9E\u3067LLM\u306B\u554F\u3044\u5408\u308F\u305B\u305F\u969B\u306E\u30D6\u30E9\u30F3\u30C9\u8A00\u53CA\u72B6\u6CC1"}
             </p>
           </div>
           <select
@@ -176,87 +401,37 @@ export function WorldHeatmap({ data }: WorldHeatmapProps) {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="flex items-start gap-5">
-          {/* Map */}
-          <div className="flex-1">
-            <div className="mb-3 flex items-baseline gap-2">
-              <Globe className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xl font-bold text-foreground">
-                {totalMentioned}/{totalQueries}
-              </span>
-              <span className="text-xs text-muted-foreground">言及 / 総クエリ数</span>
-            </div>
+        <div className="mb-5 flex items-baseline gap-2">
+          <Globe className="h-5 w-5 text-muted-foreground" />
+          <span className="text-3xl font-bold text-foreground">
+            {totalMentioned}/{totalQueries}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {"\u8A00\u53CA"} / {"\u7DCF\u30AF\u30A8\u30EA\u6570"}
+          </span>
+        </div>
 
-            <svg
-              viewBox="10 10 160 60"
-              className="w-full"
-              style={{ maxHeight: 180 }}
-            >
-              {/* Base dots */}
-              {MAP_DOTS.map(([x, y], i) => {
-                let highlighted = false;
-                let highlightColor = "rgba(255,255,255,0.12)";
-                for (const country of data) {
-                  const dx = x - country.map_center_x;
-                  const dy = y - country.map_center_y;
-                  if (Math.sqrt(dx * dx + dy * dy) <= country.map_radius) {
-                    highlighted = true;
-                    const intensity = Math.min(1, country.mention_rate / 80);
-                    highlightColor = `rgba(79, 110, 247, ${0.3 + intensity * 0.6})`;
-                    break;
-                  }
-                }
-                return (
-                  <circle
-                    key={i}
-                    cx={x}
-                    cy={y}
-                    r={highlighted ? 1.0 : 0.7}
-                    fill={highlighted ? highlightColor : "rgba(255,255,255,0.12)"}
-                  />
-                );
-              })}
-            </svg>
+        <div className="grid gap-6 lg:grid-cols-5">
+          <div className="lg:col-span-3">
+            <div className="mx-auto w-full max-w-[560px]">
+              <GlobeCanvas markers={data} />
+              <SonarLegend />
+            </div>
           </div>
 
-          {/* Country breakdown */}
-          <div className="w-52 shrink-0 space-y-2.5">
+          <div className="space-y-4 pt-2 lg:col-span-2">
             {filtered.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">
-                データがありません
+              <p className="py-16 text-center text-xs text-muted-foreground">
+                {"\u30C7\u30FC\u30BF\u304C\u3042\u308A\u307E\u305B\u3093"}
               </p>
             ) : (
-              filtered.slice(0, 6).map((country) => {
-                const barWidth = (country.total_queries / maxQueries) * 100;
-                return (
-                  <div key={country.locale}>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="flex h-5 w-7 items-center justify-center rounded bg-white/[0.08] text-[9px] font-bold text-muted-foreground">
-                          {country.country_code}
-                        </span>
-                        <span className="text-xs text-foreground">{country.country_name_ja}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs font-semibold text-foreground">
-                          {country.mention_rate}%
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-primary to-indigo-400 transition-all"
-                          style={{ width: `${barWidth}%` }}
-                        />
-                      </div>
-                      <span className="w-12 text-right text-[10px] text-muted-foreground">
-                        {country.mentioned_count}/{country.total_queries}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })
+              filtered.slice(0, 8).map((country) => (
+                <CountryBar
+                  key={country.locale}
+                  country={country}
+                  maxQueries={maxQueries}
+                />
+              ))
             )}
           </div>
         </div>
