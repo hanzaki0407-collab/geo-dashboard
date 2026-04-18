@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { LatestResultRow } from "@/lib/data";
 import { PROVIDER_LABELS, PROVIDER_COLORS } from "@/lib/data";
-import type { LLMProvider } from "@/lib/types";
+
 import { MessageSquareQuote } from "lucide-react";
 
 interface SnippetsListProps {

@@ -11,7 +11,7 @@
  *   npx tsx scripts/collect.ts --dry-run       # preview queries without executing
  */
 import { config } from "dotenv";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 config({ path: ".env.local" });

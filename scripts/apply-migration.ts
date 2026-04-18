@@ -29,7 +29,7 @@ async function main() {
     auth: { persistSession: false },
   });
 
-  const { data, error } = await supabase.rpc("exec_sql", { query: sql });
+  const { error } = await supabase.rpc("exec_sql", { query: sql });
 
   if (error) {
     // If exec_sql RPC doesn't exist, try via the REST SQL endpoint
