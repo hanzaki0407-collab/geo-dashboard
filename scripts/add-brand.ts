@@ -51,7 +51,8 @@ async function main() {
   await addBrand(supabase, company.id);
 }
 
-async function addBrand(supabase: ReturnType<typeof createClient>, companyId: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function addBrand(supabase: any, companyId: string) {
   const brandName = "\u548C\u725B\u3059\u304D\u713C\u304D \u305D\u3057\u3058 \u4E2D\u76EE\u9ED2\u5E97";
   const keywords = ["\u4E2D\u76EE\u9ED2 \u3059\u304D\u713C\u304D"];
 
