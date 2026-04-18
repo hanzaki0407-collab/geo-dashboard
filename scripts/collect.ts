@@ -276,8 +276,8 @@ async function main() {
             : "❌ not mentioned";
           console.log(`  ${status}`);
 
-          // Rate limiting: 5s between requests (Gemini free tier = ~15 RPM)
-          await sleep(5000);
+          // Rate limiting: 12s between requests (Gemini free tier = ~10 RPM with analysis)
+          await sleep(12000);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           console.error(`  ⚠ Error: ${msg.slice(0, 150)}`);

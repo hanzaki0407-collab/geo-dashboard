@@ -1,0 +1,5 @@
+UPDATE brands SET active = false WHERE id IN (
+  'aaaaaaaa-0001-0000-0000-000000000001',
+  'aaaaaaaa-0001-0000-0000-000000000002',
+  'bbbbbbbb-0002-0000-0000-000000000001'
+);
