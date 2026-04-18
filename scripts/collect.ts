@@ -98,10 +98,25 @@ Reply in EXACTLY this JSON format (no markdown, no extra text):
 async function queryGemini(
   genAI: GoogleGenerativeAI,
   prompt: string,
+  retries = 3,
 ): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("429") && attempt < retries) {
+        const wait = attempt * 15000; // 15s, 30s, 45s
+        console.log(`  ⏳ Rate limited, waiting ${wait / 1000}s (attempt ${attempt}/${retries})...`);
+        await sleep(wait);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("Max retries exceeded");
 }
 
 async function analyzeWithGemini(
@@ -109,10 +124,7 @@ async function analyzeWithGemini(
   brandName: string,
   rawResponse: string,
 ): Promise<{ mentioned: boolean; rank: number | null; snippet: string | null; sentiment: "positive" | "neutral" | "negative" | null }> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-  const prompt = getAnalysisPrompt(brandName, rawResponse);
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().trim();
+  const text = (await queryGemini(genAI, getAnalysisPrompt(brandName, rawResponse))).trim();
 
   // Extract JSON from response (handle markdown code blocks)
   const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -264,8 +276,8 @@ async function main() {
             : "❌ not mentioned";
           console.log(`  ${status}`);
 
-          // Rate limiting: 500ms between requests
-          await sleep(500);
+          // Rate limiting: 5s between requests (Gemini free tier = ~15 RPM)
+          await sleep(5000);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           console.error(`  ⚠ Error: ${msg.slice(0, 150)}`);
