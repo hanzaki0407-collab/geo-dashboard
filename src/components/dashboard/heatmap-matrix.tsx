@@ -3,6 +3,14 @@ import { Badge } from "@/components/ui/badge";
 import { PROVIDERS, PROVIDER_LABELS, type LatestResultRow } from "@/lib/data";
 import type { LLMProvider } from "@/lib/types";
 import { CheckCircle2, XCircle, MinusCircle } from "lucide-react";
+import Image from "next/image";
+
+const PROVIDER_LOGOS: Record<LLMProvider, string> = {
+  gemini: "/logos/gemini.svg",
+  google_ai_mode: "/logos/google-ai.svg",
+  chatgpt: "/logos/chatgpt.svg",
+  claude: "/logos/claude.svg",
+};
 
 interface HeatmapProps {
   results: LatestResultRow[];
@@ -66,7 +74,16 @@ export function HeatmapMatrix({ results }: HeatmapProps) {
                     key={p}
                     className="px-2 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
                   >
-                    {PROVIDER_LABELS[p]}
+                    <div className="flex flex-col items-center gap-1.5">
+                      <Image
+                        src={PROVIDER_LOGOS[p]}
+                        alt={PROVIDER_LABELS[p]}
+                        width={20}
+                        height={20}
+                        className="h-5 w-5"
+                      />
+                      <span>{PROVIDER_LABELS[p]}</span>
+                    </div>
                   </th>
                 ))}
               </tr>
