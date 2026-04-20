@@ -1,0 +1,46 @@
+name: Weekly LLM Collection
+
+on:
+  schedule:
+    # Every Monday 00:00 UTC = 09:00 JST
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+    inputs:
+      providers:
+        description: "Providers to run (comma-separated: gemini,claude)"
+        required: false
+        default: "gemini,claude"
+      locale:
+        description: "Single locale to run (optional, e.g. ja). Leave empty for all active locales."
+        required: false
+        default: ""
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Run collection
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          PROVIDERS="${{ github.event.inputs.providers || 'gemini,claude' }}"
+          LOCALE="${{ github.event.inputs.locale }}"
+          ARGS="--providers=${PROVIDERS}"
+          if [ -n "$LOCALE" ]; then
+            ARGS="$ARGS --locale=${LOCALE}"
+          fi
+          echo "Running: npx tsx scripts/collect.ts $ARGS"
+          npx tsx scripts/collect.ts $ARGS

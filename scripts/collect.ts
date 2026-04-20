@@ -13,8 +13,11 @@
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import Anthropic from "@anthropic-ai/sdk";
 
 config({ path: ".env.local" });
+
+const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
 
 // ── Types ────────────────────────────────────────────
 
@@ -147,29 +150,132 @@ async function analyzeWithGemini(
   }
 }
 
+// ── Claude provider ──────────────────────────────────
+
+async function queryClaude(
+  client: Anthropic,
+  prompt: string,
+  retries = 3,
+): Promise<string> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const msg = await client.messages.create({
+        model: CLAUDE_MODEL,
+        max_tokens: 2048,
+        messages: [{ role: "user", content: prompt }],
+      });
+      const block = msg.content.find((b) => b.type === "text");
+      if (!block || block.type !== "text") {
+        throw new Error("No text block in Claude response");
+      }
+      return block.text;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isRateLimit = msg.includes("429") || msg.toLowerCase().includes("rate");
+      const isOverloaded = msg.includes("529") || msg.toLowerCase().includes("overloaded");
+      if ((isRateLimit || isOverloaded) && attempt < retries) {
+        const wait = attempt * 10000; // 10s, 20s, 30s
+        console.log(`  ⏳ Claude throttled, waiting ${wait / 1000}s (attempt ${attempt}/${retries})...`);
+        await sleep(wait);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
+
+async function analyzeWithClaude(
+  client: Anthropic,
+  brandName: string,
+  rawResponse: string,
+): Promise<{ mentioned: boolean; rank: number | null; snippet: string | null; sentiment: "positive" | "neutral" | "negative" | null }> {
+  const text = (await queryClaude(client, getAnalysisPrompt(brandName, rawResponse))).trim();
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    console.warn(`  ⚠ Could not parse Claude analysis for "${brandName}", assuming not mentioned`);
+    return { mentioned: false, rank: null, snippet: null, sentiment: null };
+  }
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      mentioned: Boolean(parsed.mentioned),
+      rank: parsed.rank ?? null,
+      snippet: parsed.snippet ?? null,
+      sentiment: parsed.sentiment ?? null,
+    };
+  } catch {
+    console.warn(`  ⚠ JSON parse error (Claude) for "${brandName}", assuming not mentioned`);
+    return { mentioned: false, rank: null, snippet: null, sentiment: null };
+  }
+}
+
+// ── Provider abstraction ─────────────────────────────
+
+interface ProviderHandle {
+  name: "gemini" | "claude";
+  query: (prompt: string) => Promise<string>;
+  analyze: (
+    brandName: string,
+    rawResponse: string,
+  ) => Promise<{ mentioned: boolean; rank: number | null; snippet: string | null; sentiment: "positive" | "neutral" | "negative" | null }>;
+  sleepMs: number;
+}
+
 // ── Main ─────────────────────────────────────────────
 
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
   const localeArg = args.find((a) => a.startsWith("--locale="))?.split("=")[1];
+  const providersArg =
+    args.find((a) => a.startsWith("--providers="))?.split("=")[1] ?? "gemini,claude";
+  const selectedProviders = providersArg
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   // Init clients
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const geminiKey = process.env.GEMINI_API_KEY!;
 
   if (!supabaseUrl || !serviceKey) {
     throw new Error("Missing Supabase env vars");
-  }
-  if (!geminiKey) {
-    throw new Error("Missing GEMINI_API_KEY");
   }
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false },
   });
-  const genAI = new GoogleGenerativeAI(geminiKey);
+
+  const providers: ProviderHandle[] = [];
+  if (selectedProviders.includes("gemini")) {
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!geminiKey) throw new Error("Missing GEMINI_API_KEY (required for --providers=gemini)");
+    const genAI = new GoogleGenerativeAI(geminiKey);
+    providers.push({
+      name: "gemini",
+      query: (p) => queryGemini(genAI, p),
+      analyze: (b, r) => analyzeWithGemini(genAI, b, r),
+      sleepMs: 12000,
+    });
+  }
+  if (selectedProviders.includes("claude")) {
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey)
+      throw new Error("Missing ANTHROPIC_API_KEY (required for --providers=claude)");
+    const anthropic = new Anthropic({ apiKey: anthropicKey });
+    providers.push({
+      name: "claude",
+      query: (p) => queryClaude(anthropic, p),
+      analyze: (b, r) => analyzeWithClaude(anthropic, b, r),
+      sleepMs: 2000,
+    });
+  }
+  if (providers.length === 0) {
+    throw new Error(`No valid providers selected. Got: "${providersArg}". Use gemini,claude`);
+  }
 
   // Fetch brands
   const { data: brands, error: brandsErr } = await supabase
@@ -189,13 +295,15 @@ async function main() {
   console.log("=== GEO Dashboard Collection ===");
   console.log(`Brands: ${(brands as Brand[]).length}`);
   console.log(`Locales: ${(locales as Locale[]).map((l) => l.code).join(", ")}`);
+  console.log(`Providers: ${providers.map((p) => p.name).join(", ")}`);
   console.log(`Mode: ${dryRun ? "DRY RUN" : "LIVE"}`);
 
   // Calculate total queries
   const totalKeywords = (brands as Brand[]).reduce((sum, b) => sum + b.keywords.length, 0);
-  const totalQueries = totalKeywords * (locales as Locale[]).length;
-  // Currently only Gemini, multiply by 1 provider
-  console.log(`Total queries: ${totalQueries} (${totalKeywords} keywords × ${(locales as Locale[]).length} locales × 1 provider)\n`);
+  const totalQueries = totalKeywords * (locales as Locale[]).length * providers.length;
+  console.log(
+    `Total queries: ${totalQueries} (${totalKeywords} keywords × ${(locales as Locale[]).length} locales × ${providers.length} provider${providers.length > 1 ? "s" : ""})\n`,
+  );
 
   if (dryRun) {
     console.log("--- Dry Run Preview ---");
@@ -203,8 +311,10 @@ async function main() {
       for (const kw of brand.keywords) {
         for (const locale of locales as Locale[]) {
           const prompt = getPrompt(locale.code, kw);
-          console.log(`[${locale.code}] ${brand.name} / "${kw}" → Gemini`);
-          console.log(`  Prompt: ${prompt.slice(0, 80)}...`);
+          for (const provider of providers) {
+            console.log(`[${locale.code}] ${brand.name} / "${kw}" → ${provider.name}`);
+            console.log(`  Prompt: ${prompt.slice(0, 80)}...`);
+          }
         }
       }
     }
@@ -244,54 +354,50 @@ async function main() {
   for (const brand of brands as Brand[]) {
     for (const kw of brand.keywords) {
       for (const locale of locales as Locale[]) {
-        completed++;
-        const progress = `[${completed}/${total}]`;
+        for (const provider of providers) {
+          completed++;
+          const progress = `[${completed}/${total}]`;
 
-        console.log(`${progress} ${brand.name} / "${kw}" / ${locale.code} → Gemini`);
+          console.log(`${progress} ${brand.name} / "${kw}" / ${locale.code} → ${provider.name}`);
 
-        try {
-          // Step 1: Query LLM
-          const prompt = getPrompt(locale.code, kw);
-          const rawResponse = await queryGemini(genAI, prompt);
+          try {
+            const prompt = getPrompt(locale.code, kw);
+            const rawResponse = await provider.query(prompt);
+            const analysis = await provider.analyze(brand.name, rawResponse);
 
-          // Step 2: Analyze response for brand mention
-          const analysis = await analyzeWithGemini(genAI, brand.name, rawResponse);
+            results.push({
+              brand_id: brand.id,
+              keyword: kw,
+              llm_provider: provider.name,
+              locale: locale.code,
+              mentioned: analysis.mentioned,
+              rank: analysis.rank,
+              snippet: analysis.snippet,
+              sentiment: analysis.sentiment,
+              raw_response: rawResponse,
+            });
 
-          const result: CollectionResult = {
-            brand_id: brand.id,
-            keyword: kw,
-            llm_provider: "gemini",
-            locale: locale.code,
-            mentioned: analysis.mentioned,
-            rank: analysis.rank,
-            snippet: analysis.snippet,
-            sentiment: analysis.sentiment,
-            raw_response: rawResponse,
-          };
+            const status = analysis.mentioned
+              ? `✅ mentioned (rank: ${analysis.rank}, sentiment: ${analysis.sentiment})`
+              : "❌ not mentioned";
+            console.log(`  ${status}`);
 
-          results.push(result);
-
-          const status = analysis.mentioned
-            ? `✅ mentioned (rank: ${analysis.rank}, sentiment: ${analysis.sentiment})`
-            : "❌ not mentioned";
-          console.log(`  ${status}`);
-
-          // Rate limiting: 12s between requests (Gemini free tier = ~10 RPM with analysis)
-          await sleep(12000);
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error(`  ⚠ Error: ${msg.slice(0, 150)}`);
-          results.push({
-            brand_id: brand.id,
-            keyword: kw,
-            llm_provider: "gemini",
-            locale: locale.code,
-            mentioned: false,
-            rank: null,
-            snippet: null,
-            sentiment: null,
-            raw_response: `ERROR: ${msg}`,
-          });
+            await sleep(provider.sleepMs);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`  ⚠ Error (${provider.name}): ${msg.slice(0, 150)}`);
+            results.push({
+              brand_id: brand.id,
+              keyword: kw,
+              llm_provider: provider.name,
+              locale: locale.code,
+              mentioned: false,
+              rank: null,
+              snippet: null,
+              sentiment: null,
+              raw_response: `ERROR: ${msg}`,
+            });
+          }
         }
       }
     }

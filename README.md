@@ -34,9 +34,22 @@ npm run dev
 | LLM | Method | Cost |
 |---|---|---|
 | Gemini | Gemini API (free tier) | ¥0 |
+| Claude | Anthropic API (Haiku 4.5) | ~$0.05/week |
 | Google AIモード | Playwright scraping (local) | ¥0 |
-| ChatGPT | Manual CSV import | ¥0 |
-| Claude | Manual CSV import | ¥0 |
+| ChatGPT | Manual CSV import (TODO: API) | ¥0 |
+
+## Weekly Automation (GitHub Actions)
+
+`.github/workflows/weekly-collect.yml` runs `scripts/collect.ts` every Monday 00:00 UTC (09:00 JST).
+
+**Required GitHub Secrets** (Repo Settings → Secrets and variables → Actions):
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `GEMINI_API_KEY`
+- `ANTHROPIC_API_KEY`
+
+Manual trigger: Actions tab → "Weekly LLM Collection" → "Run workflow" (can override providers/locale).
 
 ## Scope
 
