@@ -17,7 +17,10 @@ import Anthropic from "@anthropic-ai/sdk";
 
 config({ path: ".env.local" });
 
-const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
+// Sonnet 4.6 with web_search gives grounded answers matching claude.ai behavior.
+// Haiku 4.5 was tested but hallucinated local store names even with strict system prompts.
+const CLAUDE_MODEL = "claude-sonnet-4-6";
+const CLAUDE_ANALYZE_MODEL = "claude-haiku-4-5-20251001"; // analysis is simple JSON, Haiku suffices
 
 // ── Types ────────────────────────────────────────────
 
@@ -51,25 +54,40 @@ interface CollectionResult {
 
 // ── Prompt templates per locale ──────────────────────
 
+// Anti-hallucination guardrail appended to every query prompt.
+// Haiku 4.5 without web access tends to fabricate store names; this instruction
+// reduces (but does not eliminate) confabulation by asking for real, verifiable
+// establishments and explicit refusal when uncertain.
+const GUARDRAIL_JA =
+  "重要: 実在が確実な有名店舗のみ挙げてください。知らない・情報がない場合は店名を創作せず、「情報がありません」と正直に答えてください。推測や架空の店名は絶対に含めないでください。";
+const GUARDRAIL_EN =
+  "IMPORTANT: Only recommend real, well-known establishments that you are confident exist. If you do not have reliable information, do NOT invent names — say 'I don't have reliable information' instead. Never fabricate store names.";
+const GUARDRAIL_ZH =
+  "重要：僅推薦您確信真實存在的知名店家。如果沒有可靠資訊，請勿編造店名，而是直接回答「我沒有可靠的資訊」。絕對不要虛構店名。";
+const GUARDRAIL_KO =
+  "중요: 실존이 확실한 유명 매장만 추천하세요. 신뢰할 수 있는 정보가 없으면 매장 이름을 지어내지 말고 '신뢰할 수 있는 정보가 없습니다'라고 답하세요. 절대로 가공의 매장 이름을 포함하지 마세요.";
+const GUARDRAIL_TH =
+  "สำคัญ: แนะนำเฉพาะร้านที่มีอยู่จริงและมีชื่อเสียงเท่านั้น หากไม่มีข้อมูลที่เชื่อถือได้ อย่าสร้างชื่อร้านขึ้นมา ให้ตอบว่า 'ไม่มีข้อมูลที่เชื่อถือได้' แทน ห้ามแต่งชื่อร้านโดยเด็ดขาด";
+
 const PROMPT_TEMPLATES: Record<string, (keyword: string) => string> = {
   ja: (kw) =>
-    `「${kw}」について、おすすめの店舗やサービスを5つ紹介してください。それぞれの特徴や評判も含めてください。`,
+    `「${kw}」について、おすすめの店舗やサービスを5つ紹介してください。それぞれの特徴や評判も含めてください。\n\n${GUARDRAIL_JA}`,
   "zh-TW": (kw) =>
-    `Please recommend 5 stores or services related to "${kw}" for someone visiting from Taiwan. Include features and reputation for each. Respond in Traditional Chinese.`,
+    `Please recommend 5 stores or services related to "${kw}" for someone visiting from Taiwan. Include features and reputation for each. Respond in Traditional Chinese.\n\n${GUARDRAIL_ZH}`,
   ko: (kw) =>
-    `Please recommend 5 stores or services related to "${kw}" for someone visiting from South Korea. Include features and reputation for each. Respond in Korean.`,
+    `Please recommend 5 stores or services related to "${kw}" for someone visiting from South Korea. Include features and reputation for each. Respond in Korean.\n\n${GUARDRAIL_KO}`,
   en: (kw) =>
-    `Please recommend 5 stores or services related to "${kw}". Include features and reputation for each.`,
+    `Please recommend 5 stores or services related to "${kw}". Include features and reputation for each.\n\n${GUARDRAIL_EN}`,
   th: (kw) =>
-    `Please recommend 5 stores or services related to "${kw}" for someone visiting from Thailand. Include features and reputation for each. Respond in Thai.`,
+    `Please recommend 5 stores or services related to "${kw}" for someone visiting from Thailand. Include features and reputation for each. Respond in Thai.\n\n${GUARDRAIL_TH}`,
   "en-AU": (kw) =>
-    `Please recommend 5 stores or services related to "${kw}" for someone visiting from Australia. Include features and reputation for each.`,
+    `Please recommend 5 stores or services related to "${kw}" for someone visiting from Australia. Include features and reputation for each.\n\n${GUARDRAIL_EN}`,
   "en-SG": (kw) =>
-    `Please recommend 5 stores or services related to "${kw}" for someone visiting from Singapore. Include features and reputation for each.`,
+    `Please recommend 5 stores or services related to "${kw}" for someone visiting from Singapore. Include features and reputation for each.\n\n${GUARDRAIL_EN}`,
   "en-GB": (kw) =>
-    `Please recommend 5 stores or services related to "${kw}" for someone visiting from the United Kingdom. Include features and reputation for each.`,
+    `Please recommend 5 stores or services related to "${kw}" for someone visiting from the United Kingdom. Include features and reputation for each.\n\n${GUARDRAIL_EN}`,
   "zh-HK": (kw) =>
-    `Please recommend 5 stores or services related to "${kw}" for someone visiting from Hong Kong. Include features and reputation for each. Respond in Traditional Chinese.`,
+    `Please recommend 5 stores or services related to "${kw}" for someone visiting from Hong Kong. Include features and reputation for each. Respond in Traditional Chinese.\n\n${GUARDRAIL_ZH}`,
 };
 
 function getPrompt(locale: string, keyword: string): string {
@@ -153,23 +171,48 @@ async function analyzeWithGemini(
 
 // ── Claude provider ──────────────────────────────────
 
+// Strict role system prompt. Placed in `system` (stronger than user-message
+// guardrails) to discourage Haiku 4.5 from fabricating local store names when
+// it has no reliable knowledge. Tested against user-message guardrails which
+// Haiku ignored.
+const CLAUDE_SYSTEM_PROMPT = `You recommend real, verifiable local establishments. You have access to a web_search tool.
+
+Guidelines:
+1. USE the web_search tool to find current, real establishments for location/keyword queries. Prefer Google Maps, Tabelog, Retty, and official business websites in search results.
+2. NEVER fabricate store names. Only list establishments confirmed via search results or reliable training-data knowledge.
+3. Quality over quantity: if search surfaces only 3 clearly-real establishments, list 3. Do not pad to reach 5.
+4. Include each establishment's actual name, a short description, and notable reputation details you can attribute to your sources.
+5. Respond in the language requested by the user.`;
+
+interface ClaudeQueryOptions {
+  retries?: number;
+  system?: string;
+  model?: string;
+  tools?: Anthropic.Tool[] | Array<{ type: string; name: string; max_uses?: number }>;
+}
+
 async function queryClaude(
   client: Anthropic,
   prompt: string,
-  retries = 3,
+  opts: ClaudeQueryOptions = {},
 ): Promise<string> {
+  const retries = opts.retries ?? 3;
+  const model = opts.model ?? CLAUDE_MODEL;
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const msg = await client.messages.create({
-        model: CLAUDE_MODEL,
-        max_tokens: 2048,
+        model,
+        max_tokens: 4096,
+        ...(opts.system ? { system: opts.system } : {}),
+        ...(opts.tools ? { tools: opts.tools as Anthropic.Tool[] } : {}),
         messages: [{ role: "user", content: prompt }],
       });
-      const block = msg.content.find((b) => b.type === "text");
-      if (!block || block.type !== "text") {
+      // Concatenate all text blocks (web_search returns multiple text blocks interleaved with tool_use/tool_result).
+      const textBlocks = msg.content.filter((b): b is Anthropic.TextBlock => b.type === "text");
+      if (textBlocks.length === 0) {
         throw new Error("No text block in Claude response");
       }
-      return block.text;
+      return textBlocks.map((b) => b.text).join("\n\n");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const isRateLimit = msg.includes("429") || msg.toLowerCase().includes("rate");
@@ -191,7 +234,10 @@ async function analyzeWithClaude(
   brandName: string,
   rawResponse: string,
 ): Promise<{ mentioned: boolean; rank: number | null; snippet: string | null; sentiment: "positive" | "neutral" | "negative" | null }> {
-  const text = (await queryClaude(client, getAnalysisPrompt(brandName, rawResponse))).trim();
+  // Analysis uses cheap Haiku model — no web_search or system prompt needed.
+  const text = (
+    await queryClaude(client, getAnalysisPrompt(brandName, rawResponse), { model: CLAUDE_ANALYZE_MODEL })
+  ).trim();
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
@@ -269,7 +315,11 @@ async function main() {
     const anthropic = new Anthropic({ apiKey: anthropicKey });
     providers.push({
       name: "claude",
-      query: (p) => queryClaude(anthropic, p),
+      query: (p) =>
+        queryClaude(anthropic, p, {
+          system: CLAUDE_SYSTEM_PROMPT,
+          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+        }),
       analyze: (b, r) => analyzeWithClaude(anthropic, b, r),
       sleepMs: 2000,
     });

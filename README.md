@@ -34,13 +34,15 @@ npm run dev
 | LLM | Method | Cost |
 |---|---|---|
 | Gemini | Gemini API (free tier) | ¥0 |
-| Claude | Anthropic API (Haiku 4.5) | ~$0.05/week |
+| Claude | Anthropic API (Sonnet 4.6 + web_search) | ~$0.29/query (~$0.60/month at current scale) |
 | Google AIモード | Playwright scraping (local) | ¥0 |
 | ChatGPT | Manual CSV import (TODO: API) | ¥0 |
 
-## Weekly Automation (GitHub Actions)
+**Claude cost detail**: Sonnet 4.6 with `web_search` tool. Each query performs ~3 web searches; input tokens inflate to ~70K due to search results injected into context. Analysis step uses Haiku 4.5 for JSON parsing. Scale cost linearly with `brand × keyword × locale` count.
 
-`.github/workflows/weekly-collect.yml` runs `scripts/collect.ts` every Monday 00:00 UTC (09:00 JST).
+## Monthly Automation (GitHub Actions)
+
+`.github/workflows/monthly-collect.yml` runs `scripts/collect.ts` on the 1st of each month at 00:00 UTC (09:00 JST).
 
 **Required GitHub Secrets** (Repo Settings → Secrets and variables → Actions):
 

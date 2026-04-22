@@ -1,9 +1,9 @@
-name: Weekly LLM Collection
+name: Monthly LLM Collection
 
 on:
   schedule:
-    # Every Monday 00:00 UTC = 09:00 JST
-    - cron: "0 0 * * 1"
+    # 1st day of each month 00:00 UTC = 09:00 JST
+    - cron: "0 0 1 * *"
   workflow_dispatch:
     inputs:
       providers:
