@@ -110,9 +110,10 @@ async function queryGemini(
       return result.response.text();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("429") && attempt < retries) {
+      const isTransient = msg.includes("429") || msg.includes("503") || msg.includes("overloaded");
+      if (isTransient && attempt < retries) {
         const wait = attempt * 15000; // 15s, 30s, 45s
-        console.log(`  ⏳ Rate limited, waiting ${wait / 1000}s (attempt ${attempt}/${retries})...`);
+        console.log(`  ⏳ Gemini ${msg.includes("503") ? "overloaded" : "rate limited"}, waiting ${wait / 1000}s (attempt ${attempt}/${retries})...`);
         await sleep(wait);
         continue;
       }
