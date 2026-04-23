@@ -1,7 +1,6 @@
 import {
   fetchBrands,
   fetchCitations,
-  fetchCompanies,
   fetchLatestResults,
   fetchLatestRun,
   fetchMentionRates,
@@ -20,7 +19,6 @@ export const revalidate = 2592000;
 export default async function Home() {
   const [
     brands,
-    companies,
     latestRun,
     results,
     rates,
@@ -29,7 +27,6 @@ export default async function Home() {
     countryMentions,
   ] = await Promise.all([
     fetchBrands(),
-    fetchCompanies(),
     fetchLatestRun(),
     fetchLatestResults(),
     fetchMentionRates(),
@@ -44,7 +41,6 @@ export default async function Home() {
       <main className="flex-1 overflow-y-auto p-5">
         <DashboardContent
           brands={brands}
-          companies={companies}
           results={results}
           rates={rates}
           domains={domains}

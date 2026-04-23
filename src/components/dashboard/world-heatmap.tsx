@@ -303,17 +303,28 @@ function CountryBar({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span
-            className="flex h-7 w-9 items-center justify-center rounded-md text-[10px] font-black tracking-wider"
+            className="flex h-7 w-9 items-center justify-center rounded-md text-base leading-none"
             style={{
               backgroundColor: `${color}18`,
-              color,
               border: `1px solid ${color}40`,
             }}
+            aria-label={country.country_name}
+            title={`${country.flag} ${country.country_name_ja}`}
           >
-            {country.country_code}
+            {country.flag || country.country_code}
           </span>
           <span className="text-sm font-medium text-foreground">
             {country.country_name_ja}
+          </span>
+          <span
+            className="rounded-sm px-1 py-px text-[9px] font-bold tracking-wider"
+            style={{
+              backgroundColor: `${color}18`,
+              color,
+              border: `1px solid ${color}30`,
+            }}
+          >
+            {country.country_code}
           </span>
         </div>
         <span className="text-base font-bold tabular-nums" style={{ color }}>

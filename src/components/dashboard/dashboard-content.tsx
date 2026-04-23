@@ -5,7 +5,6 @@ import {
   computeKpis,
   type BrandRow,
   type CitationRow,
-  type CompanyRow,
   type LatestResultRow,
   type MentionRateRow,
   type MentionsByCountryRow,
@@ -23,11 +22,9 @@ import { CitationsTable } from "@/components/dashboard/citations-table";
 import { SnippetsList } from "@/components/dashboard/snippets-list";
 import { CompetitorsList } from "@/components/dashboard/competitors-list";
 import { WorldHeatmap } from "@/components/dashboard/world-heatmap";
-import { BrandFilter } from "@/components/dashboard/brand-filter";
 
 interface DashboardContentProps {
   brands: BrandRow[];
-  companies: CompanyRow[];
   results: LatestResultRow[];
   rates: MentionRateRow[];
   domains: TopDomainRow[];
@@ -64,7 +61,6 @@ function aggregateCitations(rows: CitationRow[]): TopDomainRow[] {
 
 export function DashboardContent({
   brands,
-  companies,
   results,
   rates,
   domains,
@@ -84,7 +80,7 @@ export function DashboardContent({
 
   // Default to the first active brand instead of "全ブランド" so the dashboard
   // never displays a mixed genre heatmap on first paint.
-  const [selectedBrandId, setSelectedBrandId] = useState<string | null>(
+  const [selectedBrandId] = useState<string | null>(
     activeBrands[0]?.id ?? null,
   );
   const [cellSelection, setCellSelection] = useState<HeatmapSelection | null>(null);
@@ -137,20 +133,8 @@ export function DashboardContent({
 
   return (
     <div id="top" className="flex flex-col gap-5">
-      <div id="brand-filter">
-        <BrandFilter
-          brands={activeBrands}
-          companies={companies}
-          selectedBrandId={selectedBrandId}
-          onChange={(id) => {
-            setSelectedBrandId(id);
-            setCellSelection(null);
-          }}
-        />
-      </div>
-
       {selectedBrand && (
-        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-2 text-[11px] text-primary">
+        <div id="brand-filter" className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-2 text-[11px] text-primary">
           表示中: <span className="font-semibold">{selectedBrand.name}</span>
           {selectedBrand.keywords.length > 0 && (
             <span className="ml-2 text-primary/70">

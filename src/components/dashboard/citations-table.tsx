@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import type { TopDomainRow } from "@/lib/data";
 import { PROVIDER_LABELS, PROVIDER_COLORS } from "@/lib/data";
 import type { LLMProvider } from "@/lib/types";
-import { ExternalLink, Globe, Filter } from "lucide-react";
+import { ExternalLink, Globe, Filter, Sparkles } from "lucide-react";
 
 interface CitationsTableProps {
   domains: TopDomainRow[];
@@ -11,6 +11,55 @@ interface CitationsTableProps {
   onClearFilter?: () => void;
   scope?: "all" | "cell";
   activeProvider?: LLMProvider | null;
+}
+
+// Map known domains to user-friendly Japanese display names.
+// Falls back to the raw domain when not in the map.
+const DOMAIN_LABEL_JA: Record<string, string> = {
+  "tabelog.com": "食べログ",
+  "ikyu.com": "一休.com",
+  "restaurant.ikyu.com": "一休.comレストラン",
+  "retty.me": "Retty",
+  "rtrp.jp": "RETRIP",
+  "travelbook.co.jp": "トラベルブック",
+  "gj75700.gorp.jp": "ぐるなび店舗ページ",
+  "gnavi.co.jp": "ぐるなび",
+  "umamibites.com": "Umami Bites",
+  "autoreserve.com": "AutoReserve",
+  "shabushabu-let-us.com": "しゃぶしゃぶ Let Us",
+  "hitosara.com": "ヒトサラ",
+  "hotpepper.jp": "ホットペッパーグルメ",
+  "ozmall.co.jp": "OZmall",
+  "tripadvisor.com": "Tripadvisor",
+  "tripadvisor.jp": "Tripadvisor 日本",
+  "google.com": "Google",
+  "maps.google.com": "Google マップ",
+  "instagram.com": "Instagram",
+  "youtube.com": "YouTube",
+  "x.com": "X (Twitter)",
+  "twitter.com": "X (Twitter)",
+  "facebook.com": "Facebook",
+};
+
+// Domains considered safe / high-authority backlinks worth pursuing.
+// These get a blink animation as a "recommended" affordance.
+const RECOMMENDED_BACKLINK_DOMAINS = new Set([
+  "tabelog.com",
+  "ikyu.com",
+  "restaurant.ikyu.com",
+  "retty.me",
+  "rtrp.jp",
+  "hitosara.com",
+  "gnavi.co.jp",
+  "hotpepper.jp",
+  "ozmall.co.jp",
+  "travelbook.co.jp",
+  "tripadvisor.com",
+  "tripadvisor.jp",
+]);
+
+function labelFor(domain: string): string {
+  return DOMAIN_LABEL_JA[domain] ?? domain;
 }
 
 export function CitationsTable({
@@ -66,32 +115,53 @@ export function CitationsTable({
           <ol className="space-y-2.5">
             {domains.map((d, i) => {
               const widthPct = (d.citation_count / max) * 100;
+              const jaLabel = labelFor(d.domain);
+              const recommended = RECOMMENDED_BACKLINK_DOMAINS.has(d.domain);
               return (
                 <li key={d.domain}>
-                  <div className="flex items-center gap-2.5">
+                  <a
+                    href={`https://${d.domain}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`group flex items-center gap-2.5 rounded-md p-1 -m-1 transition-colors hover:bg-white/[0.03] ${
+                      recommended ? "recommended-backlink" : ""
+                    }`}
+                    title={
+                      recommended
+                        ? `${jaLabel} (${d.domain}) — 安全な高権威の被リンク候補`
+                        : `${jaLabel} (${d.domain})`
+                    }
+                  >
                     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-500/12 text-[10px] font-bold text-amber-400">
                       {i + 1}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-1 truncate">
+                        <div className="flex min-w-0 items-center gap-1">
                           <Globe className="h-3 w-3 shrink-0 text-muted-foreground/50" />
-                          <span className="truncate text-xs font-medium text-foreground">
-                            {d.domain}
+                          <span className="truncate text-xs font-semibold text-foreground group-hover:text-primary">
+                            {jaLabel}
                           </span>
-                          <a
-                            href={`https://${d.domain}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground/40 hover:text-primary"
-                          >
-                            <ExternalLink className="h-2.5 w-2.5" />
-                          </a>
+                          {recommended && (
+                            <span
+                              className="recommended-pulse inline-flex shrink-0 items-center gap-0.5 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-1 py-px text-[9px] font-semibold text-emerald-300"
+                              title="安全かつ効果的な被リンク候補"
+                            >
+                              <Sparkles className="h-2 w-2" />
+                              推奨
+                            </span>
+                          )}
+                          <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-primary" />
                         </div>
                         <span className="shrink-0 text-[11px] font-semibold text-foreground/70">
                           {d.citation_count}件
                         </span>
                       </div>
+                      {jaLabel !== d.domain && (
+                        <div className="truncate text-[10px] text-muted-foreground/60">
+                          {d.domain}
+                        </div>
+                      )}
                       <div className="mt-1 h-[3px] w-full overflow-hidden rounded-full bg-white/[0.04]">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all"
@@ -110,7 +180,7 @@ export function CitationsTable({
                         ))}
                       </div>
                     </div>
-                  </div>
+                  </a>
                 </li>
               );
             })}
