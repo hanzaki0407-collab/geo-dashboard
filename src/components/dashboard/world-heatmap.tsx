@@ -6,6 +6,29 @@ import { Globe } from "lucide-react";
 import createGlobe from "cobe";
 import type { MentionsByCountryRow } from "@/lib/data";
 
+/* ── Flag rendering (Windows can't render regional-indicator emoji,
+       so we always use flagcdn.com SVGs keyed by country_code) ─── */
+
+function FlagImg({
+  countryCode,
+  alt,
+  className,
+}: {
+  countryCode: string;
+  alt: string;
+  className?: string;
+}) {
+  const cc = countryCode.toLowerCase();
+  return (
+    <img
+      src={`https://flagcdn.com/${cc}.svg`}
+      alt={alt}
+      loading="lazy"
+      className={className}
+    />
+  );
+}
+
 /* ── Region filter ───────────────────────────────────── */
 
 const REGION_FILTERS: Record<string, string[]> = {
@@ -45,13 +68,25 @@ function getMentionHex(rate: number): string {
 
 /* ── Globe + Sonar ───────────────────────────────────── */
 
-function GlobeCanvas({ markers }: { markers: MentionsByCountryRow[] }) {
+function GlobeCanvas({
+  markers,
+  selectedCode,
+  onSelect,
+}: {
+  markers: MentionsByCountryRow[];
+  selectedCode: string | null;
+  onSelect: (code: string | null) => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const pointerInteracting = useRef<number | null>(null);
   const pointerInteractionMovement = useRef(0);
   const phiRef = useRef(0);
+  // Stash live screen positions so the click handler can hit-test markers.
+  const hitsRef = useRef<
+    { code: string; x: number; y: number; r: number }[]
+  >([]);
 
   const markerData = useMemo(() => {
     return markers
@@ -59,6 +94,7 @@ function GlobeCanvas({ markers }: { markers: MentionsByCountryRow[] }) {
         const coords = COUNTRY_COORDS[m.country_code];
         if (!coords) return null;
         return {
+          code: m.country_code,
           lat: coords[0],
           lng: coords[1],
           color: getMentionColor(m.mention_rate),
@@ -66,6 +102,7 @@ function GlobeCanvas({ markers }: { markers: MentionsByCountryRow[] }) {
         };
       })
       .filter(Boolean) as {
+      code: string;
       lat: number;
       lng: number;
       color: [number, number, number];
@@ -151,6 +188,8 @@ function GlobeCanvas({ markers }: { markers: MentionsByCountryRow[] }) {
         const cosTheta = Math.cos(THETA);
         const sinTheta = Math.sin(THETA);
 
+        const hits: { code: string; x: number; y: number; r: number }[] = [];
+
         for (const m of markerData) {
           const latRad = m.lat * DEG2RAD;
           const lngRad = m.lng * DEG2RAD;
@@ -184,24 +223,26 @@ function GlobeCanvas({ markers }: { markers: MentionsByCountryRow[] }) {
           const screenY = ((-s + 1) / 2) * cw;
           const [r, g, b] = m.color;
           const vis = Math.min(1, depth * 1.8);
+          const isSelected = selectedCode === m.code;
+          const intensity = isSelected ? 1.6 : 1.0;
 
           // Sonar pulse rings
           for (let ring = 0; ring < 3; ring++) {
             const phase =
               ((time * 0.7 + m.pulseOffset + ring * 0.5) % 2.0) / 2.0;
-            const ringR = 12 + phase * 80;
-            const alpha = Math.max(0, 1 - phase) * 0.4 * vis;
+            const ringR = (12 + phase * 80) * intensity;
+            const alpha = Math.max(0, 1 - phase) * (isSelected ? 0.7 : 0.4) * vis;
             ctx.beginPath();
             ctx.arc(screenX, screenY, ringR, 0, Math.PI * 2);
             ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
-            ctx.lineWidth = 2.5;
+            ctx.lineWidth = isSelected ? 3.5 : 2.5;
             ctx.stroke();
           }
 
           // Glow halo
           const breathe =
             Math.sin(time * 2.5 + m.pulseOffset) * 0.25 + 0.75;
-          const glowR = 32 * breathe;
+          const glowR = 32 * breathe * intensity;
           const grad = ctx.createRadialGradient(
             screenX,
             screenY,
@@ -218,18 +259,31 @@ function GlobeCanvas({ markers }: { markers: MentionsByCountryRow[] }) {
           ctx.fillStyle = grad;
           ctx.fill();
 
+          // Selected country gets an extra crisp outer ring
+          if (isSelected) {
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, 22, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255,255,255,${0.85 * vis})`;
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+          }
+
           // Center dot
           ctx.beginPath();
-          ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
+          ctx.arc(screenX, screenY, isSelected ? 11 : 8, 0, Math.PI * 2);
           ctx.fillStyle = `rgba(${r},${g},${b},${vis})`;
           ctx.fill();
 
           // White core
           ctx.beginPath();
-          ctx.arc(screenX, screenY, 3.5, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255,255,255,${0.9 * vis})`;
+          ctx.arc(screenX, screenY, isSelected ? 5 : 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${0.95 * vis})`;
           ctx.fill();
+
+          hits.push({ code: m.code, x: screenX, y: screenY, r: 28 });
         }
+
+        hitsRef.current = hits;
       }
 
       animFrame = requestAnimationFrame(animate);
@@ -241,7 +295,30 @@ function GlobeCanvas({ markers }: { markers: MentionsByCountryRow[] }) {
       globe.destroy();
       window.removeEventListener("resize", onResize);
     };
-  }, [markers, markerData]);
+  }, [markers, markerData, selectedCode]);
+
+  // Hit-test in CSS-space coords → match against the live hits list.
+  const onClickCanvas = useCallback(
+    (e: React.MouseEvent) => {
+      // Suppress click after a drag.
+      if (Math.abs(pointerInteractionMovement.current) > 4) return;
+      const target = canvasRef.current;
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      const scale = (rect.width === 0 ? 1 : (target.width || 1) / rect.width);
+      const cx = (e.clientX - rect.left) * scale;
+      const cy = (e.clientY - rect.top) * scale;
+      let best: { code: string; dist: number } | null = null;
+      for (const h of hitsRef.current) {
+        const d = Math.hypot(cx - h.x, cy - h.y);
+        if (d <= h.r && (!best || d < best.dist)) {
+          best = { code: h.code, dist: d };
+        }
+      }
+      if (best) onSelect(selectedCode === best.code ? null : best.code);
+    },
+    [onSelect, selectedCode],
+  );
 
   return (
     <div
@@ -252,6 +329,7 @@ function GlobeCanvas({ markers }: { markers: MentionsByCountryRow[] }) {
       onPointerUp={onPointerUp}
       onPointerOut={onPointerOut}
       onPointerMove={onPointerMove}
+      onClick={onClickCanvas}
     >
       <canvas
         ref={canvasRef}
@@ -291,27 +369,42 @@ function SonarLegend() {
 function CountryBar({
   country,
   maxQueries,
+  selected,
+  onSelect,
 }: {
   country: MentionsByCountryRow;
   maxQueries: number;
+  selected: boolean;
+  onSelect: (code: string) => void;
 }) {
   const barPct = (country.total_queries / maxQueries) * 100;
   const color = getMentionHex(country.mention_rate);
 
   return (
-    <div>
+    <button
+      type="button"
+      onClick={() => onSelect(country.country_code)}
+      className={`block w-full rounded-md p-2 -m-2 text-left transition-colors hover:bg-white/[0.03] ${
+        selected ? "ring-2 ring-primary/50 bg-primary/5" : ""
+      }`}
+      title={`地球儀の${country.country_name_ja}にスポットを当てる`}
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span
-            className="flex h-7 w-9 items-center justify-center rounded-md text-base leading-none"
+            className="flex h-7 w-10 items-center justify-center overflow-hidden rounded-md"
             style={{
               backgroundColor: `${color}18`,
               border: `1px solid ${color}40`,
             }}
             aria-label={country.country_name}
-            title={`${country.flag} ${country.country_name_ja}`}
+            title={country.country_name_ja}
           >
-            {country.flag || country.country_code}
+            <FlagImg
+              countryCode={country.country_code}
+              alt={country.country_name_ja}
+              className="h-full w-full object-cover"
+            />
           </span>
           <span className="text-sm font-medium text-foreground">
             {country.country_name_ja}
@@ -363,7 +456,7 @@ function CountryBar({
           {country.mentioned_count}/{country.total_queries}
         </span>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -375,11 +468,18 @@ interface WorldHeatmapProps {
 
 export function WorldHeatmap({ data }: WorldHeatmapProps) {
   const [region, setRegion] = useState<string>("\u5168\u4E16\u754C");
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+
+  // Inbound view shows only countries that have at least one mention.
+  // 0% countries are noise for this report and were hiding the real signal.
+  const withMentions = data.filter((c) => c.mentioned_count > 0);
 
   const filtered =
     region === "\u5168\u4E16\u754C"
-      ? data
-      : data.filter((c) => REGION_FILTERS[region]?.includes(c.country_code));
+      ? withMentions
+      : withMentions.filter((c) =>
+          REGION_FILTERS[region]?.includes(c.country_code),
+        );
 
   const totalQueries = filtered.reduce((s, c) => s + c.total_queries, 0);
   const totalMentioned = filtered.reduce((s, c) => s + c.mentioned_count, 0);
@@ -425,8 +525,17 @@ export function WorldHeatmap({ data }: WorldHeatmapProps) {
         <div className="grid gap-6 lg:grid-cols-5">
           <div className="lg:col-span-3">
             <div className="mx-auto w-full max-w-[560px]">
-              <GlobeCanvas markers={data} />
+              <GlobeCanvas
+                markers={withMentions}
+                selectedCode={selectedCode}
+                onSelect={setSelectedCode}
+              />
               <SonarLegend />
+              <p className="mt-2 text-center text-[10px] text-muted-foreground/70">
+                {selectedCode
+                  ? "PINまたは右側のバーをもう一度クリックで選択解除"
+                  : "PINや右の国バーをクリックすると連動して強調表示されます"}
+              </p>
             </div>
           </div>
 
@@ -441,6 +550,10 @@ export function WorldHeatmap({ data }: WorldHeatmapProps) {
                   key={country.locale}
                   country={country}
                   maxQueries={maxQueries}
+                  selected={selectedCode === country.country_code}
+                  onSelect={(code) =>
+                    setSelectedCode((cur) => (cur === code ? null : code))
+                  }
                 />
               ))
             )}
