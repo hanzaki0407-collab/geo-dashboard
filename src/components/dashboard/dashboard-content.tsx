@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   computeKpis,
   type BrandRow,
@@ -78,11 +79,23 @@ export function DashboardContent({
     [activeBrands],
   );
 
-  // Default to the first active brand instead of "全ブランド" so the dashboard
-  // never displays a mixed genre heatmap on first paint.
-  const [selectedBrandId] = useState<string | null>(
-    activeBrands[0]?.id ?? null,
-  );
+  // Sidebar writes the brand/keyword selection into URL search params so the
+  // tree (in the layout) and the dashboard (this page) can share state without
+  // a Context refactor. Empty params = "all".
+  const params = useSearchParams();
+  const selectedBrandSet = useMemo(() => {
+    const raw = params.get("brand");
+    return raw
+      ? new Set(raw.split(",").filter(Boolean))
+      : new Set(activeBrands.map((b) => b.id));
+  }, [params, activeBrands]);
+  const selectedKeywordSet = useMemo(() => {
+    const raw = params.get("kw");
+    return raw
+      ? new Set(raw.split(",").filter(Boolean))
+      : new Set(activeBrands.flatMap((b) => b.keywords));
+  }, [params, activeBrands]);
+
   const [cellSelection, setCellSelection] = useState<HeatmapSelection | null>(null);
 
   // Active-brand-only base (drops stale brand rows regardless of selection).
@@ -97,18 +110,18 @@ export function DashboardContent({
 
   const filteredResults = useMemo(
     () =>
-      selectedBrandId
-        ? baseResults.filter((r) => r.brand_id === selectedBrandId)
-        : baseResults,
-    [baseResults, selectedBrandId],
+      baseResults.filter(
+        (r) =>
+          selectedBrandSet.has(r.brand_id) && selectedKeywordSet.has(r.keyword),
+      ),
+    [baseResults, selectedBrandSet, selectedKeywordSet],
   );
   const filteredRates = useMemo(
-    () =>
-      selectedBrandId ? baseRates.filter((r) => r.brand_id === selectedBrandId) : baseRates,
-    [baseRates, selectedBrandId],
+    () => baseRates.filter((r) => selectedBrandSet.has(r.brand_id)),
+    [baseRates, selectedBrandSet],
   );
   const kpis = useMemo(() => computeKpis(filteredResults), [filteredResults]);
-  const brandCount = selectedBrandId ? 1 : activeBrands.length;
+  const brandCount = selectedBrandSet.size;
 
   const cellDomains = useMemo(() => {
     if (!cellSelection) return null;
@@ -125,20 +138,31 @@ export function DashboardContent({
     : null;
 
   const activeCellSelection =
-    cellSelection && (!selectedBrandId || cellSelection.brandId === selectedBrandId)
+    cellSelection && selectedBrandSet.has(cellSelection.brandId)
       ? cellSelection
       : null;
 
-  const selectedBrand = activeBrands.find((b) => b.id === selectedBrandId) ?? null;
+  const allBrandsSelected = selectedBrandSet.size === activeBrands.length;
+  const allKeywordsSelected =
+    selectedKeywordSet.size === activeBrands.flatMap((b) => b.keywords).length;
+  const selectedBrandList = activeBrands.filter((b) => selectedBrandSet.has(b.id));
+  const showFilterBanner = !(allBrandsSelected && allKeywordsSelected);
 
   return (
     <div id="top" className="flex flex-col gap-5">
-      {selectedBrand && (
+      {showFilterBanner && selectedBrandList.length > 0 && (
         <div id="brand-filter" className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-2 text-[11px] text-primary">
-          表示中: <span className="font-semibold">{selectedBrand.name}</span>
-          {selectedBrand.keywords.length > 0 && (
+          表示中:{" "}
+          <span className="font-semibold">
+            {selectedBrandList.length === 1
+              ? selectedBrandList[0].name
+              : `${selectedBrandList.length} ブランド`}
+          </span>
+          {!allKeywordsSelected && (
             <span className="ml-2 text-primary/70">
-              キーワード: {selectedBrand.keywords.join(" / ")}
+              キーワード:{" "}
+              {Array.from(selectedKeywordSet).slice(0, 6).join(" / ")}
+              {selectedKeywordSet.size > 6 ? " …" : ""}
             </span>
           )}
         </div>

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import {
   fetchBrands,
   fetchCitations,
@@ -39,14 +40,16 @@ export default async function Home() {
     <>
       <Topbar lastWeekStart={latestRun?.week_start ?? null} />
       <main className="flex-1 overflow-y-auto p-5">
-        <DashboardContent
-          brands={brands}
-          results={results}
-          rates={rates}
-          domains={domains}
-          citations={citations}
-          countryMentions={countryMentions}
-        />
+        <Suspense fallback={null}>
+          <DashboardContent
+            brands={brands}
+            results={results}
+            rates={rates}
+            domains={domains}
+            citations={citations}
+            countryMentions={countryMentions}
+          />
+        </Suspense>
       </main>
     </>
   );
