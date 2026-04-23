@@ -41,25 +41,48 @@ const DOMAIN_LABEL_JA: Record<string, string> = {
   "facebook.com": "Facebook",
 };
 
-// Domains considered safe / high-authority backlinks worth pursuing.
-// These get a blink animation as a "recommended" affordance.
-const RECOMMENDED_BACKLINK_DOMAINS = new Set([
-  "tabelog.com",
-  "ikyu.com",
-  "restaurant.ikyu.com",
-  "retty.me",
-  "rtrp.jp",
-  "hitosara.com",
-  "gnavi.co.jp",
-  "hotpepper.jp",
-  "ozmall.co.jp",
-  "travelbook.co.jp",
-  "tripadvisor.com",
-  "tripadvisor.jp",
-]);
+// Domain authority + reason. Authority is a domain-level prior the system
+// uses to rank the *most* effective backlink targets. Reason is shown to the
+// user so they understand why a specific site is recommended.
+type Authority = { score: number; reason: string };
+const DOMAIN_AUTHORITY: Record<string, Authority> = {
+  "tabelog.com":           { score: 1.00, reason: "国内最大級のグルメDB。AI検索でも常に上位参照され、ここに載るだけで言及率が大きく伸びる。" },
+  "ikyu.com":              { score: 0.92, reason: "高級店向け予約大手。客単価の高い来店に直結し、AIの推奨候補にも採用されやすい。" },
+  "restaurant.ikyu.com":   { score: 0.92, reason: "高級店向け予約大手。客単価の高い来店に直結し、AIの推奨候補にも採用されやすい。" },
+  "retty.me":              { score: 0.78, reason: "実名口コミ系の主要メディア。掲載数が多いほどAIが「信頼できる店」と判定しやすい。" },
+  "hitosara.com":          { score: 0.72, reason: "シェフ情報＋予約サイト。検索エンジン評価が高く、AIの根拠記事として参照されやすい。" },
+  "gnavi.co.jp":           { score: 0.70, reason: "予約・口コミ大手。安定的な参照流入と、AI回答での店舗カード露出が見込める。" },
+  "rtrp.jp":               { score: 0.55, reason: "旅行系まとめメディア。訪日・観光ワードでのAI言及に効きやすい。" },
+  "hotpepper.jp":          { score: 0.55, reason: "予約大手。クーポン経由の来店動機が強く、若年層の認知拡大に有効。" },
+  "ozmall.co.jp":          { score: 0.50, reason: "女性向け予約・特集メディア。デート・記念日キーワードに強い。" },
+  "travelbook.co.jp":      { score: 0.48, reason: "旅行ガイド系。インバウンド検索の根拠記事になりやすい。" },
+  "tripadvisor.com":       { score: 0.65, reason: "世界最大級の口コミプラットフォーム。海外ユーザー・AI双方から参照される。" },
+  "tripadvisor.jp":        { score: 0.65, reason: "世界最大級の口コミプラットフォーム。海外ユーザー・AI双方から参照される。" },
+};
+
+const TOP_RECOMMENDED_LIMIT = 3;
 
 function labelFor(domain: string): string {
   return DOMAIN_LABEL_JA[domain] ?? domain;
+}
+
+// Pick the system's best backlink targets from what's visible:
+// score = domain authority × log(citations+1). Returns up to 3 recommended.
+function pickRecommended(domains: TopDomainRow[]): Map<string, Authority> {
+  const ranked = domains
+    .map((d) => {
+      const auth = DOMAIN_AUTHORITY[d.domain];
+      if (!auth) return null;
+      return {
+        domain: d.domain,
+        auth,
+        rank: auth.score * Math.log(d.citation_count + 1),
+      };
+    })
+    .filter((x): x is { domain: string; auth: Authority; rank: number } => x !== null)
+    .sort((a, b) => b.rank - a.rank)
+    .slice(0, TOP_RECOMMENDED_LIMIT);
+  return new Map(ranked.map((r) => [r.domain, r.auth]));
 }
 
 export function CitationsTable({
@@ -73,6 +96,7 @@ export function CitationsTable({
   const title = scope === "cell" ? "引用元ドメイン（選択セル）" : "引用元ドメイン Top 10";
   const rangeLabel = scope === "cell" ? "タップしたセルの引用元" : "直近4週";
   const accent = activeProvider ? PROVIDER_COLORS[activeProvider] : null;
+  const recommendedMap = pickRecommended(domains);
 
   return (
     <Card
@@ -116,7 +140,8 @@ export function CitationsTable({
             {domains.map((d, i) => {
               const widthPct = (d.citation_count / max) * 100;
               const jaLabel = labelFor(d.domain);
-              const recommended = RECOMMENDED_BACKLINK_DOMAINS.has(d.domain);
+              const recommendation = recommendedMap.get(d.domain);
+              const recommended = !!recommendation;
               return (
                 <li key={d.domain}>
                   <a
@@ -161,6 +186,12 @@ export function CitationsTable({
                         <div className="truncate text-[10px] text-muted-foreground/60">
                           {d.domain}
                         </div>
+                      )}
+                      {recommendation && (
+                        <p className="mt-1 rounded-md border border-emerald-400/25 bg-emerald-400/5 px-2 py-1 text-[10px] leading-snug text-emerald-200/90">
+                          <span className="font-semibold text-emerald-300">推奨理由：</span>
+                          {recommendation.reason}
+                        </p>
                       )}
                       <div className="mt-1 h-[3px] w-full overflow-hidden rounded-full bg-white/[0.04]">
                         <div
