@@ -261,9 +261,11 @@ export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
                     className="border-t border-white/[0.03] transition-colors hover:bg-white/[0.02]"
                   >
                     <td className="sticky left-0 bg-card px-3 py-2.5 text-left">
-                      <div className="text-xs font-medium text-foreground">{info.brand}</div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {info.company} · {info.keyword}
+                      <div className="text-[11px] font-medium text-muted-foreground/80">
+                        {info.brand}
+                      </div>
+                      <div className="mt-0.5 inline-block rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+                        {info.keyword}
                       </div>
                     </td>
                     {PROVIDERS.map((p) => {
