@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PROVIDERS, PROVIDER_LABELS, type LatestResultRow } from "@/lib/data";
@@ -33,14 +34,125 @@ interface Cell {
   brandId: string;
 }
 
+// Synthetic example showing what the matrix looks like once the user is
+// tracking 5 brands × multiple keywords across all 4 providers.
+function buildSampleResults(): LatestResultRow[] {
+  type Sample = {
+    brand: string;
+    company: string;
+    keyword: string;
+    cells: Partial<
+      Record<LLMProvider, { mentioned: boolean; rank?: number; sentiment?: "positive" | "neutral" | "negative" }>
+    >;
+  };
+  const samples: Sample[] = [
+    {
+      brand: "サンプルA・カフェ表参道",
+      company: "サンプル株式会社A（仮）",
+      keyword: "表参道 カフェ",
+      cells: {
+        gemini:         { mentioned: true,  rank: 2, sentiment: "positive" },
+        google_ai_mode: { mentioned: true,  rank: 4, sentiment: "neutral" },
+        chatgpt:        { mentioned: false },
+        claude:         { mentioned: true,  rank: 6, sentiment: "positive" },
+      },
+    },
+    {
+      brand: "サンプルA・カフェ表参道",
+      company: "サンプル株式会社A（仮）",
+      keyword: "表参道 ランチ",
+      cells: {
+        gemini:         { mentioned: true,  rank: 5, sentiment: "neutral" },
+        google_ai_mode: { mentioned: false },
+        chatgpt:        { mentioned: true,  rank: 8, sentiment: "neutral" },
+        claude:         { mentioned: false },
+      },
+    },
+    {
+      brand: "サンプルB・寿司 銀座本店",
+      company: "サンプル株式会社B（仮）",
+      keyword: "銀座 寿司",
+      cells: {
+        gemini:         { mentioned: true,  rank: 1, sentiment: "positive" },
+        google_ai_mode: { mentioned: true,  rank: 3, sentiment: "positive" },
+        chatgpt:        { mentioned: true,  rank: 2, sentiment: "positive" },
+        claude:         { mentioned: true,  rank: 4, sentiment: "positive" },
+      },
+    },
+    {
+      brand: "サンプルC・焼肉 渋谷",
+      company: "サンプル株式会社C（仮）",
+      keyword: "渋谷 焼肉",
+      cells: {
+        gemini:         { mentioned: true,  rank: 7, sentiment: "neutral" },
+        google_ai_mode: { mentioned: false },
+        chatgpt:        { mentioned: true,  rank: 9, sentiment: "negative" },
+        claude:         { mentioned: false },
+      },
+    },
+    {
+      brand: "サンプルD・ホテル 新宿",
+      company: "サンプル株式会社D（仮）",
+      keyword: "新宿 ホテル",
+      cells: {
+        gemini:         { mentioned: true,  rank: 3, sentiment: "positive" },
+        google_ai_mode: { mentioned: true,  rank: 5, sentiment: "neutral" },
+        chatgpt:        { mentioned: true,  rank: 6, sentiment: "positive" },
+        claude:         { mentioned: true,  rank: 8, sentiment: "neutral" },
+      },
+    },
+    {
+      brand: "サンプルE・ラーメン横丁",
+      company: "サンプル株式会社E（仮）",
+      keyword: "新横浜 ラーメン",
+      cells: {
+        gemini:         { mentioned: false },
+        google_ai_mode: { mentioned: true,  rank: 10, sentiment: "neutral" },
+        chatgpt:        { mentioned: false },
+        claude:         { mentioned: true,  rank: 4, sentiment: "positive" },
+      },
+    },
+  ];
+  const out: LatestResultRow[] = [];
+  let idx = 0;
+  for (const s of samples) {
+    const brandId = `sample-${idx++}`;
+    for (const p of PROVIDERS) {
+      const c = s.cells[p];
+      if (!c) continue;
+      out.push({
+        id: `${brandId}-${p}`,
+        run_id: "sample-run",
+        week_start: new Date().toISOString().slice(0, 10),
+        brand_id: brandId,
+        brand_name: s.brand,
+        company_id: `co-${brandId}`,
+        company_name: s.company,
+        keyword: s.keyword,
+        llm_provider: p,
+        locale: "ja",
+        mentioned: c.mentioned,
+        rank: c.rank ?? null,
+        snippet: null,
+        sentiment: c.sentiment ?? null,
+        competitors: null,
+        collected_at: new Date().toISOString(),
+      });
+    }
+  }
+  return out;
+}
+
 export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
+  const [showSample, setShowSample] = useState(false);
+  const effectiveResults = showSample ? buildSampleResults() : results;
   const brandKeywordKey = (brand: string, keyword: string) => `${brand}::${keyword}`;
 
   const pairs = new Map<
     string,
     { brand: string; brandId: string; company: string; keyword: string }
   >();
-  for (const r of results) {
+  for (const r of effectiveResults) {
     pairs.set(brandKeywordKey(r.brand_name, r.keyword), {
       brand: r.brand_name,
       brandId: r.brand_id,
@@ -50,7 +162,7 @@ export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
   }
 
   const matrix = new Map<string, Map<LLMProvider, Cell>>();
-  for (const r of results) {
+  for (const r of effectiveResults) {
     const key = brandKeywordKey(r.brand_name, r.keyword);
     if (!matrix.has(key)) matrix.set(key, new Map());
     matrix.get(key)!.set(r.llm_provider, {
@@ -72,22 +184,45 @@ export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <CardTitle className="text-sm font-semibold text-foreground">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
               ブランド × LLM 言及マトリクス
+              {showSample && (
+                <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
+                  サンプル（仮）
+                </span>
+              )}
             </CardTitle>
             <p className="text-[11px] text-muted-foreground">
-              Rankセルをタップで右の引用元Top10を絞り込み
+              {showSample
+                ? "実データではありません。複数ブランド登録後の表示イメージ。"
+                : "Rankセルをタップで右の引用元Top10を絞り込み"}
             </p>
           </div>
-          {selection && (
+          <div className="flex shrink-0 items-center gap-1.5">
+            {selection && !showSample && (
+              <button
+                type="button"
+                onClick={() => onSelect(null)}
+                className="rounded-md border border-border bg-white/[0.03] px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                絞り込み解除
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => onSelect(null)}
-              className="shrink-0 rounded-md border border-border bg-white/[0.03] px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              onClick={() => {
+                onSelect(null);
+                setShowSample((s) => !s);
+              }}
+              className={`rounded-md border px-2 py-1 text-[10px] font-medium transition-colors ${
+                showSample
+                  ? "border-amber-400/40 bg-amber-400/15 text-amber-300"
+                  : "border-border bg-white/[0.03] text-muted-foreground hover:text-foreground"
+              }`}
             >
-              絞り込み解除
+              {showSample ? "実データに戻す" : "サンプル表示"}
             </button>
-          )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
