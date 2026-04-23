@@ -5,12 +5,12 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
-  Globe,
   Home,
   Link2,
   LogOut,
   Users,
 } from "lucide-react";
+import Image from "next/image";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Suspense, useMemo, useState, useCallback } from "react";
 import type { BrandRow } from "@/lib/data";
@@ -29,13 +29,17 @@ interface SidebarProps {
 export function Sidebar({ brands }: SidebarProps) {
   return (
     <aside className="flex w-[260px] shrink-0 flex-col bg-sidebar">
-      <div className="flex h-16 items-center gap-2.5 px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-          <Globe className="h-4 w-4 text-primary-foreground" />
+      <div className="flex h-20 items-center justify-center px-3">
+        <div className="rounded-lg bg-white px-2 py-1.5">
+          <Image
+            src="/hanchan-creative-logo.png"
+            alt="HANCHAN creative"
+            width={220}
+            height={70}
+            priority
+            className="h-12 w-auto object-contain"
+          />
         </div>
-        <span className="text-[15px] font-bold tracking-tight text-foreground">
-          GEO Dashboard
-        </span>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 pt-4">
