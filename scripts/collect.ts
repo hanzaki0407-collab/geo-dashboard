@@ -40,6 +40,19 @@ interface Locale {
   active: boolean;
 }
 
+interface Competitor {
+  name: string;
+  rank: number;
+  description?: string | null;
+}
+
+interface CitationExtract {
+  url: string;
+  title: string | null;
+  domain: string;
+  position: number;
+}
+
 interface CollectionResult {
   brand_id: string;
   keyword: string;
@@ -49,7 +62,49 @@ interface CollectionResult {
   rank: number | null;
   snippet: string | null;
   sentiment: "positive" | "neutral" | "negative" | null;
+  competitors: Competitor[] | null;
+  citations: CitationExtract[];
   raw_response: string;
+}
+
+function getDomainFromUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, "").toLowerCase() || null;
+  } catch {
+    return null;
+  }
+}
+
+// Extract the URLs Claude actually cited in its final answer (inline
+// web_search_result_location citations on text blocks). These are the sources
+// that backed the generated recommendation — more signal than raw search
+// results, which may include dropped candidates.
+function extractClaudeCitations(content: Anthropic.ContentBlock[]): CitationExtract[] {
+  const seen = new Map<string, CitationExtract>();
+  let position = 0;
+  for (const block of content) {
+    if (block.type !== "text") continue;
+    const textBlock = block as Anthropic.TextBlock;
+    const cits = textBlock.citations;
+    if (!cits || !Array.isArray(cits)) continue;
+    for (const cit of cits) {
+      if (cit.type !== "web_search_result_location") continue;
+      const url = (cit as { url?: string }).url;
+      if (!url) continue;
+      if (seen.has(url)) continue;
+      const domain = getDomainFromUrl(url);
+      if (!domain) continue;
+      position++;
+      seen.set(url, {
+        url,
+        title: (cit as { title?: string | null }).title ?? null,
+        domain,
+        position,
+      });
+    }
+  }
+  return Array.from(seen.values());
 }
 
 // ── Prompt templates per locale ──────────────────────
@@ -98,7 +153,10 @@ function getPrompt(locale: string, keyword: string): string {
 // ── Analysis prompt (always in English for consistency) ──
 
 function getAnalysisPrompt(brandName: string, rawResponse: string): string {
-  return `Analyze the following LLM response and determine if the brand "${brandName}" is mentioned.
+  return `Analyze the following LLM response.
+
+Task 1: Determine if the brand "${brandName}" is mentioned.
+Task 2: Extract every establishment the LLM recommended, in ranked order (up to 5).
 
 Response to analyze:
 ---
@@ -108,10 +166,19 @@ ${rawResponse}
 Reply in EXACTLY this JSON format (no markdown, no extra text):
 {
   "mentioned": true or false,
-  "rank": number or null (position in the list if mentioned, 1-based),
+  "rank": number or null (position of "${brandName}" in the list if mentioned, 1-based),
   "snippet": "the sentence mentioning the brand" or null,
-  "sentiment": "positive" or "neutral" or "negative" or null
-}`;
+  "sentiment": "positive" or "neutral" or "negative" or null,
+  "competitors": [
+    { "name": "Establishment name as written", "rank": 1, "description": "short 1-sentence summary" }
+  ]
+}
+
+Notes:
+- "competitors" MUST include every establishment listed by the LLM, including "${brandName}" itself if present. This captures the full ranking the LLM produced.
+- "rank" starts at 1 for the first recommendation.
+- If no establishments are listed (e.g. the LLM refused or said "no reliable info"), return "competitors": [].
+- Keep "description" under 80 characters. If not available, use an empty string.`;
 }
 
 // ── Gemini provider ──────────────────────────────────
@@ -141,18 +208,42 @@ async function queryGemini(
   throw new Error("Max retries exceeded");
 }
 
+interface AnalysisResult {
+  mentioned: boolean;
+  rank: number | null;
+  snippet: string | null;
+  sentiment: "positive" | "neutral" | "negative" | null;
+  competitors: Competitor[] | null;
+}
+
+function normalizeCompetitors(raw: unknown): Competitor[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: Competitor[] = [];
+  for (const item of raw.slice(0, 5)) {
+    if (!item || typeof item !== "object") continue;
+    const name = typeof (item as { name?: unknown }).name === "string" ? (item as { name: string }).name.trim() : "";
+    if (!name) continue;
+    const rank = Number((item as { rank?: unknown }).rank);
+    const description = typeof (item as { description?: unknown }).description === "string"
+      ? ((item as { description: string }).description.trim() || null)
+      : null;
+    out.push({ name, rank: Number.isFinite(rank) && rank > 0 ? rank : out.length + 1, description });
+  }
+  return out.length > 0 ? out : [];
+}
+
 async function analyzeWithGemini(
   genAI: GoogleGenerativeAI,
   brandName: string,
   rawResponse: string,
-): Promise<{ mentioned: boolean; rank: number | null; snippet: string | null; sentiment: "positive" | "neutral" | "negative" | null }> {
+): Promise<AnalysisResult> {
   const text = (await queryGemini(genAI, getAnalysisPrompt(brandName, rawResponse))).trim();
 
   // Extract JSON from response (handle markdown code blocks)
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     console.warn(`  ⚠ Could not parse analysis for "${brandName}", assuming not mentioned`);
-    return { mentioned: false, rank: null, snippet: null, sentiment: null };
+    return { mentioned: false, rank: null, snippet: null, sentiment: null, competitors: null };
   }
 
   try {
@@ -162,10 +253,11 @@ async function analyzeWithGemini(
       rank: parsed.rank ?? null,
       snippet: parsed.snippet ?? null,
       sentiment: parsed.sentiment ?? null,
+      competitors: normalizeCompetitors(parsed.competitors),
     };
   } catch {
     console.warn(`  ⚠ JSON parse error for "${brandName}", assuming not mentioned`);
-    return { mentioned: false, rank: null, snippet: null, sentiment: null };
+    return { mentioned: false, rank: null, snippet: null, sentiment: null, competitors: null };
   }
 }
 
@@ -191,11 +283,16 @@ interface ClaudeQueryOptions {
   tools?: Anthropic.Tool[] | Array<{ type: string; name: string; max_uses?: number }>;
 }
 
+interface ClaudeQueryResult {
+  text: string;
+  citations: CitationExtract[];
+}
+
 async function queryClaude(
   client: Anthropic,
   prompt: string,
   opts: ClaudeQueryOptions = {},
-): Promise<string> {
+): Promise<ClaudeQueryResult> {
   const retries = opts.retries ?? 3;
   const model = opts.model ?? CLAUDE_MODEL;
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -212,7 +309,9 @@ async function queryClaude(
       if (textBlocks.length === 0) {
         throw new Error("No text block in Claude response");
       }
-      return textBlocks.map((b) => b.text).join("\n\n");
+      const text = textBlocks.map((b) => b.text).join("\n\n");
+      const citations = extractClaudeCitations(msg.content);
+      return { text, citations };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const isRateLimit = msg.includes("429") || msg.toLowerCase().includes("rate");
@@ -233,16 +332,16 @@ async function analyzeWithClaude(
   client: Anthropic,
   brandName: string,
   rawResponse: string,
-): Promise<{ mentioned: boolean; rank: number | null; snippet: string | null; sentiment: "positive" | "neutral" | "negative" | null }> {
+): Promise<AnalysisResult> {
   // Analysis uses cheap Haiku model — no web_search or system prompt needed.
   const text = (
     await queryClaude(client, getAnalysisPrompt(brandName, rawResponse), { model: CLAUDE_ANALYZE_MODEL })
-  ).trim();
+  ).text.trim();
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     console.warn(`  ⚠ Could not parse Claude analysis for "${brandName}", assuming not mentioned`);
-    return { mentioned: false, rank: null, snippet: null, sentiment: null };
+    return { mentioned: false, rank: null, snippet: null, sentiment: null, competitors: null };
   }
 
   try {
@@ -252,22 +351,25 @@ async function analyzeWithClaude(
       rank: parsed.rank ?? null,
       snippet: parsed.snippet ?? null,
       sentiment: parsed.sentiment ?? null,
+      competitors: normalizeCompetitors(parsed.competitors),
     };
   } catch {
     console.warn(`  ⚠ JSON parse error (Claude) for "${brandName}", assuming not mentioned`);
-    return { mentioned: false, rank: null, snippet: null, sentiment: null };
+    return { mentioned: false, rank: null, snippet: null, sentiment: null, competitors: null };
   }
 }
 
 // ── Provider abstraction ─────────────────────────────
 
+interface QueryResult {
+  text: string;
+  citations: CitationExtract[];
+}
+
 interface ProviderHandle {
   name: "gemini" | "claude";
-  query: (prompt: string) => Promise<string>;
-  analyze: (
-    brandName: string,
-    rawResponse: string,
-  ) => Promise<{ mentioned: boolean; rank: number | null; snippet: string | null; sentiment: "positive" | "neutral" | "negative" | null }>;
+  query: (prompt: string) => Promise<QueryResult>;
+  analyze: (brandName: string, rawResponse: string) => Promise<AnalysisResult>;
   sleepMs: number;
 }
 
@@ -303,7 +405,8 @@ async function main() {
     const genAI = new GoogleGenerativeAI(geminiKey);
     providers.push({
       name: "gemini",
-      query: (p) => queryGemini(genAI, p),
+      // Gemini grounding not yet enabled — surface text only, no citations.
+      query: async (p) => ({ text: await queryGemini(genAI, p), citations: [] }),
       analyze: (b, r) => analyzeWithGemini(genAI, b, r),
       sleepMs: 12000,
     });
@@ -413,8 +516,8 @@ async function main() {
 
           try {
             const prompt = getPrompt(locale.code, kw);
-            const rawResponse = await provider.query(prompt);
-            const analysis = await provider.analyze(brand.name, rawResponse);
+            const queryResult = await provider.query(prompt);
+            const analysis = await provider.analyze(brand.name, queryResult.text);
 
             results.push({
               brand_id: brand.id,
@@ -425,13 +528,16 @@ async function main() {
               rank: analysis.rank,
               snippet: analysis.snippet,
               sentiment: analysis.sentiment,
-              raw_response: rawResponse,
+              competitors: analysis.competitors,
+              citations: queryResult.citations,
+              raw_response: queryResult.text,
             });
 
             const status = analysis.mentioned
               ? `✅ mentioned (rank: ${analysis.rank}, sentiment: ${analysis.sentiment})`
               : "❌ not mentioned";
-            console.log(`  ${status}`);
+            const citCount = queryResult.citations.length;
+            console.log(`  ${status}${citCount > 0 ? ` · 引用 ${citCount} 件` : ""}`);
 
             await sleep(provider.sleepMs);
           } catch (err) {
@@ -446,6 +552,8 @@ async function main() {
               rank: null,
               snippet: null,
               sentiment: null,
+              competitors: null,
+              citations: [],
               raw_response: `ERROR: ${msg}`,
             });
           }
@@ -458,24 +566,59 @@ async function main() {
   console.log(`\nSaving ${results.length} results to Supabase...`);
 
   for (const r of results) {
-    const { error: upsertErr } = await supabase.from("llm_results").upsert(
-      {
-        run_id: runId,
-        brand_id: r.brand_id,
-        keyword: r.keyword,
-        llm_provider: r.llm_provider,
-        locale: r.locale,
-        mentioned: r.mentioned,
-        rank: r.rank,
-        snippet: r.snippet,
-        sentiment: r.sentiment,
-        raw_response: r.raw_response,
-        collected_at: new Date().toISOString(),
-      },
-      { onConflict: "run_id,brand_id,keyword,llm_provider,locale" },
-    );
-    if (upsertErr) {
-      console.error(`  ⚠ Upsert error for ${r.brand_id}/${r.keyword}/${r.locale}: ${upsertErr.message}`);
+    const { data: upserted, error: upsertErr } = await supabase
+      .from("llm_results")
+      .upsert(
+        {
+          run_id: runId,
+          brand_id: r.brand_id,
+          keyword: r.keyword,
+          llm_provider: r.llm_provider,
+          locale: r.locale,
+          mentioned: r.mentioned,
+          rank: r.rank,
+          snippet: r.snippet,
+          sentiment: r.sentiment,
+          competitors: r.competitors,
+          raw_response: r.raw_response,
+          collected_at: new Date().toISOString(),
+        },
+        { onConflict: "run_id,brand_id,keyword,llm_provider,locale" },
+      )
+      .select("id")
+      .single();
+    if (upsertErr || !upserted) {
+      console.error(
+        `  ⚠ Upsert error for ${r.brand_id}/${r.keyword}/${r.locale}: ${upsertErr?.message ?? "no row returned"}`,
+      );
+      continue;
+    }
+
+    // Replace-all strategy for citations: delete any stale rows for this
+    // result, then insert the fresh set. Keeps citation_sources in sync when
+    // a weekly run is re-executed (e.g. manual retry after rate-limit).
+    const { error: delErr } = await supabase
+      .from("citation_sources")
+      .delete()
+      .eq("result_id", upserted.id);
+    if (delErr) {
+      console.error(`  ⚠ Citation delete error for ${upserted.id}: ${delErr.message}`);
+      continue;
+    }
+
+    if (r.citations.length > 0) {
+      const { error: insErr } = await supabase.from("citation_sources").insert(
+        r.citations.map((c) => ({
+          result_id: upserted.id,
+          url: c.url,
+          title: c.title,
+          domain: c.domain,
+          position: c.position,
+        })),
+      );
+      if (insErr) {
+        console.error(`  ⚠ Citation insert error for ${upserted.id}: ${insErr.message}`);
+      }
     }
   }
 
@@ -485,18 +628,102 @@ async function main() {
     .update({ status: "completed", completed_at: new Date().toISOString() })
     .eq("id", runId);
 
+  // Prune old data before notifying the dashboard so its cache reflects the
+  // trimmed dataset on the next render.
+  await pruneOldData(supabase);
+
+  // Kick Next.js ISR so the dashboard reflects new data immediately without
+  // paying a request-time DB round-trip for every visitor.
+  await triggerDashboardRevalidation();
+
   const mentioned = results.filter((r) => r.mentioned).length;
   console.log(`\n=== Complete ===`);
   console.log(`Results: ${results.length} total, ${mentioned} mentioned`);
   console.log(`Run ID: ${runId}`);
 }
 
+// ── Post-run side effects ────────────────────────────
+
+// Keep 13 months of data — enough for YoY context, small enough that the
+// dashboard stays fast and storage costs stay flat.
+const RETENTION_MONTHS = 13;
+
+async function pruneOldData(
+  supabase: ReturnType<typeof createClient>,
+): Promise<void> {
+  const cutoff = new Date();
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - RETENTION_MONTHS);
+  const cutoffIso = cutoff.toISOString().slice(0, 10);
+
+  console.log(`\n=== Pruning data older than ${cutoffIso} ===`);
+
+  // Select old run IDs first — llm_results references weekly_runs.id, so we
+  // must clear children before deleting parents.
+  const { data: oldRuns, error: selectErr } = await supabase
+    .from("weekly_runs")
+    .select("id")
+    .lt("week_start", cutoffIso);
+  if (selectErr) {
+    console.error(`  ⚠ Prune select failed: ${selectErr.message}`);
+    return;
+  }
+  const oldIds = (oldRuns ?? []).map((r: { id: string }) => r.id);
+  if (oldIds.length === 0) {
+    console.log("  Nothing to prune.");
+    return;
+  }
+
+  const { error: resultsErr } = await supabase
+    .from("llm_results")
+    .delete()
+    .in("run_id", oldIds);
+  if (resultsErr) {
+    console.error(`  ⚠ Prune llm_results failed: ${resultsErr.message}`);
+    return;
+  }
+
+  const { error: runsErr } = await supabase
+    .from("weekly_runs")
+    .delete()
+    .in("id", oldIds);
+  if (runsErr) {
+    console.error(`  ⚠ Prune weekly_runs failed: ${runsErr.message}`);
+    return;
+  }
+
+  console.log(`  Pruned ${oldIds.length} run(s).`);
+}
+
+async function triggerDashboardRevalidation(): Promise<void> {
+  const url = process.env.REVALIDATE_URL;
+  const secret = process.env.REVALIDATE_SECRET;
+  if (!url || !secret) {
+    console.log("\n(Skipping revalidation: REVALIDATE_URL/SECRET not set.)");
+    return;
+  }
+  try {
+    const res = await fetch(`${url.replace(/\/$/, "")}/api/revalidate`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${secret}` },
+    });
+    if (!res.ok) {
+      console.error(`  ⚠ Revalidation returned ${res.status}: ${await res.text()}`);
+      return;
+    }
+    console.log("\n=== Dashboard revalidation triggered ===");
+  } catch (err) {
+    console.error(`  ⚠ Revalidation request failed:`, err);
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────
 
+// UTC-based Monday calculation. Both local dev (JST) and GitHub Actions (UTC)
+// produce the same week_start string, avoiding duplicate weekly_runs.
 function getMonday(d: Date): Date {
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  return new Date(d.getFullYear(), d.getMonth(), diff);
+  const day = d.getUTCDay();
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff));
 }
 
 function sleep(ms: number): Promise<void> {

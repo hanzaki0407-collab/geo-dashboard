@@ -45,3 +45,8 @@ next-env.d.ts
 # OMC / Claude Code runtime state
 .omc/
 .claude/
+
+# local debugging artifacts
+screenshot-*.png
+scripts/_*.ts
+supabase/.temp/

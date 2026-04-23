@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PROVIDERS, PROVIDER_LABELS, type LatestResultRow } from "@/lib/data";
@@ -12,23 +14,36 @@ const PROVIDER_LOGOS: Record<LLMProvider, string> = {
   claude: "/logos/claude.svg",
 };
 
+export interface HeatmapSelection {
+  brandId: string;
+  brandName: string;
+  provider: LLMProvider;
+}
+
 interface HeatmapProps {
   results: LatestResultRow[];
+  selection: HeatmapSelection | null;
+  onSelect: (sel: HeatmapSelection | null) => void;
 }
 
 interface Cell {
   mentioned: boolean | null;
   rank: number | null;
   sentiment: string | null;
+  brandId: string;
 }
 
-export function HeatmapMatrix({ results }: HeatmapProps) {
+export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
   const brandKeywordKey = (brand: string, keyword: string) => `${brand}::${keyword}`;
 
-  const pairs = new Map<string, { brand: string; company: string; keyword: string }>();
+  const pairs = new Map<
+    string,
+    { brand: string; brandId: string; company: string; keyword: string }
+  >();
   for (const r of results) {
     pairs.set(brandKeywordKey(r.brand_name, r.keyword), {
       brand: r.brand_name,
+      brandId: r.brand_id,
       company: r.company_name,
       keyword: r.keyword,
     });
@@ -42,6 +57,7 @@ export function HeatmapMatrix({ results }: HeatmapProps) {
       mentioned: r.mentioned,
       rank: r.rank,
       sentiment: r.sentiment,
+      brandId: r.brand_id,
     });
   }
 
@@ -54,12 +70,25 @@ export function HeatmapMatrix({ results }: HeatmapProps) {
   return (
     <Card className="border border-border bg-card">
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold text-foreground">
-          ブランド × LLM 言及マトリクス
-        </CardTitle>
-        <p className="text-[11px] text-muted-foreground">
-          色付きセル: 言及あり / ホバーで順位と感情を表示
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-sm font-semibold text-foreground">
+              ブランド × LLM 言及マトリクス
+            </CardTitle>
+            <p className="text-[11px] text-muted-foreground">
+              Rankセルをタップで右の引用元Top10を絞り込み
+            </p>
+          </div>
+          {selection && (
+            <button
+              type="button"
+              onClick={() => onSelect(null)}
+              className="shrink-0 rounded-md border border-border bg-white/[0.03] px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              絞り込み解除
+            </button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="overflow-x-auto">
@@ -104,9 +133,30 @@ export function HeatmapMatrix({ results }: HeatmapProps) {
                     </td>
                     {PROVIDERS.map((p) => {
                       const cell = cells.get(p);
+                      const isSelected =
+                        !!selection &&
+                        selection.brandId === info.brandId &&
+                        selection.provider === p;
                       return (
                         <td key={p} className="px-2 py-2.5 text-center">
-                          <CellPill cell={cell ?? null} />
+                          <CellPill
+                            cell={cell ?? null}
+                            selected={isSelected}
+                            onClick={
+                              cell && cell.mentioned
+                                ? () =>
+                                    onSelect(
+                                      isSelected
+                                        ? null
+                                        : {
+                                            brandId: info.brandId,
+                                            brandName: info.brand,
+                                            provider: p,
+                                          },
+                                    )
+                                : undefined
+                            }
+                          />
                         </td>
                       );
                     })}
@@ -131,7 +181,15 @@ export function HeatmapMatrix({ results }: HeatmapProps) {
   );
 }
 
-function CellPill({ cell }: { cell: Cell | null }) {
+function CellPill({
+  cell,
+  selected,
+  onClick,
+}: {
+  cell: Cell | null;
+  selected: boolean;
+  onClick?: () => void;
+}) {
   if (!cell) {
     return (
       <div
@@ -160,15 +218,33 @@ function CellPill({ cell }: { cell: Cell | null }) {
         ? "from-rose-500 to-pink-500"
         : "from-sky-500 to-indigo-500";
 
+  const selectedRing = selected
+    ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-card"
+    : "";
+
+  const Inner = (
+    <div
+      className={`flex h-8 min-w-8 items-center justify-center gap-0.5 rounded-lg bg-gradient-to-br ${sentimentClass} px-1.5 text-white ${selectedRing}`}
+      title={`言及あり${cell.rank ? ` · 順位${cell.rank}位` : ""}${cell.sentiment ? ` · ${cell.sentiment}` : ""}${onClick ? " · クリックで引用元を絞り込み" : ""}`}
+    >
+      <CheckCircle2 className="h-3.5 w-3.5" />
+      {cell.rank && <span className="text-[10px] font-bold">#{cell.rank}</span>}
+    </div>
+  );
+
+  if (!onClick) {
+    return <div className="flex justify-center">{Inner}</div>;
+  }
+
   return (
     <div className="flex justify-center">
-      <div
-        className={`flex h-8 min-w-8 items-center justify-center gap-0.5 rounded-lg bg-gradient-to-br ${sentimentClass} px-1.5 text-white`}
-        title={`言及あり${cell.rank ? ` · 順位${cell.rank}位` : ""}${cell.sentiment ? ` · ${cell.sentiment}` : ""}`}
+      <button
+        type="button"
+        onClick={onClick}
+        className="transition-transform hover:scale-110 focus:outline-none"
       >
-        <CheckCircle2 className="h-3.5 w-3.5" />
-        {cell.rank && <span className="text-[10px] font-bold">#{cell.rank}</span>}
-      </div>
+        {Inner}
+      </button>
     </div>
   );
 }

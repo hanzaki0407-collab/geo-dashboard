@@ -1,31 +1,66 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { TopDomainRow } from "@/lib/data";
-import { PROVIDER_LABELS } from "@/lib/data";
+import { PROVIDER_LABELS, PROVIDER_COLORS } from "@/lib/data";
 import type { LLMProvider } from "@/lib/types";
-import { ExternalLink, Globe } from "lucide-react";
+import { ExternalLink, Globe, Filter } from "lucide-react";
 
 interface CitationsTableProps {
   domains: TopDomainRow[];
+  filterLabel?: string | null;
+  onClearFilter?: () => void;
+  scope?: "all" | "cell";
+  activeProvider?: LLMProvider | null;
 }
 
-export function CitationsTable({ domains }: CitationsTableProps) {
+export function CitationsTable({
+  domains,
+  filterLabel,
+  onClearFilter,
+  scope = "all",
+  activeProvider = null,
+}: CitationsTableProps) {
   const max = Math.max(1, ...domains.map((d) => d.citation_count));
+  const title = scope === "cell" ? "引用元ドメイン（選択セル）" : "引用元ドメイン Top 10";
+  const rangeLabel = scope === "cell" ? "タップしたセルの引用元" : "直近4週";
+  const accent = activeProvider ? PROVIDER_COLORS[activeProvider] : null;
 
   return (
-    <Card className="border border-border bg-card">
+    <Card
+      className="border border-border bg-card"
+      style={accent ? { boxShadow: `inset 3px 0 0 ${accent}` } : undefined}
+    >
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold text-foreground">
-            引用元ドメイン Top 10
-          </CardTitle>
-          <span className="text-[10px] text-muted-foreground">直近4週</span>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-semibold text-foreground">{title}</CardTitle>
+            {filterLabel && (
+              <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-400">
+                <Filter className="h-2.5 w-2.5" />
+                <span className="truncate">{filterLabel}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="text-[10px] text-muted-foreground">{rangeLabel}</span>
+            {onClearFilter && filterLabel && (
+              <button
+                type="button"
+                onClick={onClearFilter}
+                className="rounded-md border border-border bg-white/[0.03] px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                解除
+              </button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
         {domains.length === 0 ? (
           <p className="py-6 text-center text-xs text-muted-foreground">
-            引用元データがまだありません
+            {scope === "cell"
+              ? "このセルの引用元データがありません"
+              : "引用元データがまだありません"}
           </p>
         ) : (
           <ol className="space-y-2.5">
