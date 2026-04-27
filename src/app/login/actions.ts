@@ -1,19 +1,22 @@
 "use server";
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { isEmailAllowed } from "@/lib/auth";
 
 export type LoginState = {
+  error?: string;
+  email?: string;
+};
+
+export type ResetState = {
   ok?: boolean;
   error?: string;
   email?: string;
 };
 
 function resolveSiteUrl(host: string | null, proto: string | null): string {
-  // Prefer the current request host so the magic link returns to the same
-  // origin the user signed in from (works on preview, prod, and localhost
-  // without per-environment config).
   if (host) {
     const scheme =
       proto ?? (host.startsWith("localhost") ? "http" : "https");
@@ -24,11 +27,47 @@ function resolveSiteUrl(host: string | null, proto: string | null): string {
   return "http://localhost:3000";
 }
 
-export async function sendMagicLink(
+export async function signIn(
   _prev: LoginState | undefined,
   formData: FormData,
 ): Promise<LoginState> {
   const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+
+  if (!email || !password) {
+    return { error: "メールアドレスとパスワードを入力してください。", email };
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { error: "メールアドレスの形式が正しくありません。", email };
+  }
+  if (!isEmailAllowed(email)) {
+    return {
+      error:
+        "このメールアドレスはアクセスが許可されていません。管理者にご連絡ください。",
+      email,
+    };
+  }
+
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    return {
+      error:
+        "メールアドレスまたはパスワードが正しくありません。初回の方は下の「パスワード設定」からお進みください。",
+      email,
+    };
+  }
+
+  redirect("/");
+}
+
+export async function sendPasswordReset(
+  _prev: ResetState | undefined,
+  formData: FormData,
+): Promise<ResetState> {
+  const email = String(formData.get("email") ?? "").trim();
+
   if (!email) {
     return { error: "メールアドレスを入力してください。", email };
   }
@@ -46,12 +85,8 @@ export async function sendMagicLink(
   const h = await headers();
   const site = resolveSiteUrl(h.get("host"), h.get("x-forwarded-proto"));
   const supabase = await getSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${site}/auth/callback`,
-      shouldCreateUser: true,
-    },
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${site}/auth/callback?next=/auth/update-password`,
   });
 
   if (error) {
