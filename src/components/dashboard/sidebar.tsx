@@ -24,9 +24,10 @@ const mainMenu = [
 
 interface SidebarProps {
   brands: BrandRow[];
+  userEmail?: string | null;
 }
 
-export function Sidebar({ brands }: SidebarProps) {
+export function Sidebar({ brands, userEmail }: SidebarProps) {
   return (
     <aside className="flex w-[260px] shrink-0 flex-col bg-sidebar">
       <div className="flex h-20 items-center justify-center px-3">
@@ -68,14 +69,29 @@ export function Sidebar({ brands }: SidebarProps) {
         </ul>
       </nav>
 
-      <div className="p-3">
-        <a
-          href="#"
-          className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        >
-          <LogOut className="h-[17px] w-[17px]" />
-          Log Out
-        </a>
+      <div className="space-y-1.5 border-t border-sidebar-border/40 p-3">
+        {userEmail && (
+          <div
+            className="px-3 pt-1 text-[11px] text-sidebar-foreground/60"
+            title={userEmail}
+          >
+            <div className="text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground/40">
+              Signed in as
+            </div>
+            <div className="truncate text-[12px] font-medium text-sidebar-foreground/80">
+              {userEmail}
+            </div>
+          </div>
+        )}
+        <form action="/auth/logout" method="post">
+          <button
+            type="submit"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <LogOut className="h-[17px] w-[17px]" />
+            Log Out
+          </button>
+        </form>
       </div>
     </aside>
   );
