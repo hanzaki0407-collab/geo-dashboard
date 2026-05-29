@@ -278,9 +278,16 @@ Guidelines:
 
 interface ClaudeQueryOptions {
   retries?: number;
-  system?: string;
+  system?: string | Anthropic.TextBlockParam[];
   model?: string;
-  tools?: Anthropic.Tool[] | Array<{ type: string; name: string; max_uses?: number }>;
+  tools?:
+    | Anthropic.Tool[]
+    | Array<{
+        type: string;
+        name: string;
+        max_uses?: number;
+        cache_control?: { type: "ephemeral" };
+      }>;
 }
 
 interface ClaudeQueryResult {
@@ -420,8 +427,29 @@ async function main() {
       name: "claude",
       query: (p) =>
         queryClaude(anthropic, p, {
-          system: CLAUDE_SYSTEM_PROMPT,
-          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+          // cache_control on the last static block (tools) makes Anthropic
+          // cache `system + tools` as one prefix. The weekly batch fires
+          // every Claude call within seconds of the previous one, so the
+          // 5-min ephemeral TTL is more than enough — every call after the
+          // first reads the cached prefix at 10% of the input price.
+          system: [
+            {
+              type: "text",
+              text: CLAUDE_SYSTEM_PROMPT,
+            },
+          ],
+          tools: [
+            {
+              type: "web_search_20250305",
+              name: "web_search",
+              // Reduced from 5 → 3. Each web_search round-trip re-injects
+              // result tokens into the next turn's input, so capping uses is
+              // the single largest knob on input-token cost. 3 is enough to
+              // verify a top-5 store list against multiple sources.
+              max_uses: 3,
+              cache_control: { type: "ephemeral" },
+            },
+          ],
         }),
       analyze: (b, r) => analyzeWithClaude(anthropic, b, r),
       sleepMs: 2000,
