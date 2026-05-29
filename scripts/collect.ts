@@ -186,9 +186,19 @@ Notes:
 async function queryGemini(
   genAI: GoogleGenerativeAI,
   prompt: string,
-  retries = 3,
+  opts: { grounding?: boolean; retries?: number } = {},
 ): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const { grounding = false, retries = 3 } = opts;
+  // Grounding (Google Search) makes Gemini behave like the consumer app — it
+  // surfaces current/niche local businesses instead of answering from stale
+  // training data. The installed SDK's Tool type predates the 2.x googleSearch
+  // tool, so the tools array is cast; the API accepts it on gemini-2.5-flash.
+  const model = grounding
+    ? genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        tools: [{ googleSearch: {} }] as never,
+      })
+    : genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const result = await model.generateContent(prompt);
@@ -412,8 +422,13 @@ async function main() {
     const genAI = new GoogleGenerativeAI(geminiKey);
     providers.push({
       name: "gemini",
-      // Gemini grounding not yet enabled — surface text only, no citations.
-      query: async (p) => ({ text: await queryGemini(genAI, p), citations: [] }),
+      // Gemini grounded via Google Search so it matches the consumer app and
+      // can surface niche local businesses. Grounding chunk URIs are redirect
+      // links (not publisher domains), so we don't extract citations here.
+      query: async (p) => ({
+        text: await queryGemini(genAI, p, { grounding: true }),
+        citations: [],
+      }),
       analyze: (b, r) => analyzeWithGemini(genAI, b, r),
       sleepMs: 12000,
     });
