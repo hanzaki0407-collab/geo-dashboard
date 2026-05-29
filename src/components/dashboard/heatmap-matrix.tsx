@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
+import { Check, Minus, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { PROVIDERS, PROVIDER_LABELS, type LatestResultRow } from "@/lib/data";
 import type { LLMProvider } from "@/lib/types";
-import { CheckCircle2, XCircle, MinusCircle } from "lucide-react";
-import Image from "next/image";
+import { cn } from "@/lib/utils";
+import type { CellSelection } from "./filter-context";
 
 const PROVIDER_LOGOS: Record<LLMProvider, string> = {
   gemini: "/logos/gemini.svg",
@@ -15,16 +16,10 @@ const PROVIDER_LOGOS: Record<LLMProvider, string> = {
   claude: "/logos/claude.svg",
 };
 
-export interface HeatmapSelection {
-  brandId: string;
-  brandName: string;
-  provider: LLMProvider;
-}
-
 interface HeatmapProps {
   results: LatestResultRow[];
-  selection: HeatmapSelection | null;
-  onSelect: (sel: HeatmapSelection | null) => void;
+  selection: CellSelection | null;
+  onSelect: (sel: CellSelection | null) => void;
 }
 
 interface Cell {
@@ -35,14 +30,17 @@ interface Cell {
 }
 
 // Synthetic example showing what the matrix looks like once the user is
-// tracking 5 brands × multiple keywords across all 4 providers.
+// tracking several brands × keywords across all 4 providers. Clearly labelled.
 function buildSampleResults(): LatestResultRow[] {
   type Sample = {
     brand: string;
     company: string;
     keyword: string;
     cells: Partial<
-      Record<LLMProvider, { mentioned: boolean; rank?: number; sentiment?: "positive" | "neutral" | "negative" }>
+      Record<
+        LLMProvider,
+        { mentioned: boolean; rank?: number; sentiment?: "positive" | "neutral" | "negative" }
+      >
     >;
   };
   const samples: Sample[] = [
@@ -51,21 +49,10 @@ function buildSampleResults(): LatestResultRow[] {
       company: "サンプル株式会社A（仮）",
       keyword: "表参道 カフェ",
       cells: {
-        gemini:         { mentioned: true,  rank: 2, sentiment: "positive" },
-        google_ai_mode: { mentioned: true,  rank: 4, sentiment: "neutral" },
-        chatgpt:        { mentioned: false },
-        claude:         { mentioned: true,  rank: 6, sentiment: "positive" },
-      },
-    },
-    {
-      brand: "サンプルA・カフェ表参道",
-      company: "サンプル株式会社A（仮）",
-      keyword: "表参道 ランチ",
-      cells: {
-        gemini:         { mentioned: true,  rank: 5, sentiment: "neutral" },
-        google_ai_mode: { mentioned: false },
-        chatgpt:        { mentioned: true,  rank: 8, sentiment: "neutral" },
-        claude:         { mentioned: false },
+        gemini: { mentioned: true, rank: 2, sentiment: "positive" },
+        google_ai_mode: { mentioned: true, rank: 4, sentiment: "neutral" },
+        chatgpt: { mentioned: false },
+        claude: { mentioned: true, rank: 6, sentiment: "positive" },
       },
     },
     {
@@ -73,10 +60,10 @@ function buildSampleResults(): LatestResultRow[] {
       company: "サンプル株式会社B（仮）",
       keyword: "銀座 寿司",
       cells: {
-        gemini:         { mentioned: true,  rank: 1, sentiment: "positive" },
-        google_ai_mode: { mentioned: true,  rank: 3, sentiment: "positive" },
-        chatgpt:        { mentioned: true,  rank: 2, sentiment: "positive" },
-        claude:         { mentioned: true,  rank: 4, sentiment: "positive" },
+        gemini: { mentioned: true, rank: 1, sentiment: "positive" },
+        google_ai_mode: { mentioned: true, rank: 3, sentiment: "positive" },
+        chatgpt: { mentioned: true, rank: 2, sentiment: "positive" },
+        claude: { mentioned: true, rank: 4, sentiment: "positive" },
       },
     },
     {
@@ -84,10 +71,10 @@ function buildSampleResults(): LatestResultRow[] {
       company: "サンプル株式会社C（仮）",
       keyword: "渋谷 焼肉",
       cells: {
-        gemini:         { mentioned: true,  rank: 7, sentiment: "neutral" },
+        gemini: { mentioned: true, rank: 7, sentiment: "neutral" },
         google_ai_mode: { mentioned: false },
-        chatgpt:        { mentioned: true,  rank: 9, sentiment: "negative" },
-        claude:         { mentioned: false },
+        chatgpt: { mentioned: true, rank: 9, sentiment: "negative" },
+        claude: { mentioned: false },
       },
     },
     {
@@ -95,21 +82,10 @@ function buildSampleResults(): LatestResultRow[] {
       company: "サンプル株式会社D（仮）",
       keyword: "新宿 ホテル",
       cells: {
-        gemini:         { mentioned: true,  rank: 3, sentiment: "positive" },
-        google_ai_mode: { mentioned: true,  rank: 5, sentiment: "neutral" },
-        chatgpt:        { mentioned: true,  rank: 6, sentiment: "positive" },
-        claude:         { mentioned: true,  rank: 8, sentiment: "neutral" },
-      },
-    },
-    {
-      brand: "サンプルE・ラーメン横丁",
-      company: "サンプル株式会社E（仮）",
-      keyword: "新横浜 ラーメン",
-      cells: {
-        gemini:         { mentioned: false },
-        google_ai_mode: { mentioned: true,  rank: 10, sentiment: "neutral" },
-        chatgpt:        { mentioned: false },
-        claude:         { mentioned: true,  rank: 4, sentiment: "positive" },
+        gemini: { mentioned: true, rank: 3, sentiment: "positive" },
+        google_ai_mode: { mentioned: true, rank: 5, sentiment: "neutral" },
+        chatgpt: { mentioned: true, rank: 6, sentiment: "positive" },
+        claude: { mentioned: true, rank: 8, sentiment: "neutral" },
       },
     },
   ];
@@ -146,26 +122,23 @@ function buildSampleResults(): LatestResultRow[] {
 export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
   const [showSample, setShowSample] = useState(false);
   const effectiveResults = showSample ? buildSampleResults() : results;
-  const brandKeywordKey = (brand: string, keyword: string) => `${brand}::${keyword}`;
+  const key = (brand: string, keyword: string) => `${brand}::${keyword}`;
 
   const pairs = new Map<
     string,
     { brand: string; brandId: string; company: string; keyword: string }
   >();
+  const matrix = new Map<string, Map<LLMProvider, Cell>>();
   for (const r of effectiveResults) {
-    pairs.set(brandKeywordKey(r.brand_name, r.keyword), {
+    const k = key(r.brand_name, r.keyword);
+    pairs.set(k, {
       brand: r.brand_name,
       brandId: r.brand_id,
       company: r.company_name,
       keyword: r.keyword,
     });
-  }
-
-  const matrix = new Map<string, Map<LLMProvider, Cell>>();
-  for (const r of effectiveResults) {
-    const key = brandKeywordKey(r.brand_name, r.keyword);
-    if (!matrix.has(key)) matrix.set(key, new Map());
-    matrix.get(key)!.set(r.llm_provider, {
+    if (!matrix.has(k)) matrix.set(k, new Map());
+    matrix.get(k)!.set(r.llm_provider, {
       mentioned: r.mentioned,
       rank: r.rank,
       sentiment: r.sentiment,
@@ -180,14 +153,14 @@ export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
   );
 
   return (
-    <Card className="border border-border bg-card">
+    <Card className="border-border bg-card shadow-[var(--shadow-card)]">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
               ブランド × LLM 言及マトリクス
               {showSample && (
-                <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
+                <span className="rounded-full border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[9px] font-bold text-warning">
                   サンプル（仮）
                 </span>
               )}
@@ -195,7 +168,7 @@ export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
             <p className="text-[11px] text-muted-foreground">
               {showSample
                 ? "実データではありません。複数ブランド登録後の表示イメージ。"
-                : "Rankセルをタップで右の引用元Top10を絞り込み"}
+                : "セルをクリックすると右の引用元を絞り込みます"}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
@@ -214,11 +187,12 @@ export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
                 onSelect(null);
                 setShowSample((s) => !s);
               }}
-              className={`rounded-md border px-2 py-1 text-[10px] font-medium transition-colors ${
+              className={cn(
+                "rounded-md border px-2 py-1 text-[10px] font-medium transition-colors",
                 showSample
-                  ? "border-amber-400/40 bg-amber-400/15 text-amber-300"
-                  : "border-border bg-white/[0.03] text-muted-foreground hover:text-foreground"
-              }`}
+                  ? "border-warning/40 bg-warning/15 text-warning"
+                  : "border-border bg-white/[0.03] text-muted-foreground hover:text-foreground",
+              )}
             >
               {showSample ? "実データに戻す" : "サンプル表示"}
             </button>
@@ -230,13 +204,13 @@ export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="sticky left-0 bg-card px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="sticky left-0 bg-card px-3 py-2.5 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
                   ブランド / キーワード
                 </th>
                 {PROVIDERS.map((p) => (
                   <th
                     key={p}
-                    className="px-2 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    className="px-2 py-2.5 text-center text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
                   >
                     <div className="flex flex-col items-center gap-1.5">
                       <Image
@@ -253,11 +227,11 @@ export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
               </tr>
             </thead>
             <tbody>
-              {rows.map(([key, info]) => {
-                const cells = matrix.get(key) ?? new Map();
+              {rows.map(([k, info]) => {
+                const cells = matrix.get(k) ?? new Map<LLMProvider, Cell>();
                 return (
                   <tr
-                    key={key}
+                    key={k}
                     className="border-t border-white/[0.03] transition-colors hover:bg-white/[0.02]"
                   >
                     <td className="sticky left-0 bg-card px-3 py-2.5 text-left">
@@ -269,7 +243,7 @@ export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
                       </div>
                     </td>
                     {PROVIDERS.map((p) => {
-                      const cell = cells.get(p);
+                      const cell = cells.get(p) ?? null;
                       const isSelected =
                         !!selection &&
                         selection.brandId === info.brandId &&
@@ -277,10 +251,10 @@ export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
                       return (
                         <td key={p} className="px-2 py-2.5 text-center">
                           <CellPill
-                            cell={cell ?? null}
+                            cell={cell}
                             selected={isSelected}
                             onClick={
-                              cell && cell.mentioned
+                              cell
                                 ? () =>
                                     onSelect(
                                       isSelected
@@ -304,15 +278,20 @@ export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
                 <tr>
                   <td
                     colSpan={PROVIDERS.length + 1}
-                    className="px-3 py-6 text-center text-xs text-muted-foreground"
+                    className="px-3 py-10 text-center text-xs text-muted-foreground"
                   >
-                    データがありません
+                    選択中の条件に一致するデータがありません。
+                    <br />
+                    サイドバーで別のブランド/キーワードを選ぶか「サンプル表示」で
+                    レイアウトを確認できます。
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        <HeatmapLegend />
       </CardContent>
     </Card>
   );
@@ -327,84 +306,91 @@ function CellPill({
   selected: boolean;
   onClick?: () => void;
 }) {
+  // No measurement for this brand×provider yet.
   if (!cell) {
     return (
       <div
-        className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.03] text-muted-foreground/30"
+        className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.02] text-muted-foreground/25"
         title="未計測"
       >
-        <MinusCircle className="h-3.5 w-3.5" />
-      </div>
-    );
-  }
-  if (!cell.mentioned) {
-    return (
-      <div
-        className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.03] text-muted-foreground/50"
-        title="言及なし"
-      >
-        <XCircle className="h-3.5 w-3.5" />
+        <Minus className="h-3.5 w-3.5" />
       </div>
     );
   }
 
-  const sentimentClass =
-    cell.sentiment === "positive"
-      ? "from-emerald-500 to-teal-500"
+  const mentioned = cell.mentioned === true;
+  const tone = !mentioned
+    ? "border border-white/10 bg-white/[0.04] text-muted-foreground/70"
+    : cell.sentiment === "positive"
+      ? "bg-[var(--success)] text-white"
       : cell.sentiment === "negative"
-        ? "from-rose-500 to-pink-500"
-        : "from-sky-500 to-indigo-500";
+        ? "bg-[var(--destructive)] text-white"
+        : "bg-primary text-primary-foreground";
 
-  const selectedRing = selected
-    ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-card"
-    : "";
-
-  const Inner = (
+  const inner = (
     <div
-      className={`flex h-8 min-w-8 items-center justify-center gap-0.5 rounded-lg bg-gradient-to-br ${sentimentClass} px-1.5 text-white ${selectedRing}`}
-      title={`言及あり${cell.rank ? ` · 順位${cell.rank}位` : ""}${cell.sentiment ? ` · ${cell.sentiment}` : ""}${onClick ? " · クリックで引用元を絞り込み" : ""}`}
+      className={cn(
+        "flex h-8 min-w-8 items-center justify-center gap-0.5 rounded-lg px-1.5",
+        tone,
+        selected && "ring-2 ring-primary ring-offset-2 ring-offset-card",
+      )}
+      title={
+        mentioned
+          ? `言及あり${cell.rank ? ` · 順位${cell.rank}位` : ""}${
+              cell.sentiment ? ` · ${cell.sentiment}` : ""
+            } · クリックで引用元を絞り込み`
+          : "言及なし · クリックで引用元を確認"
+      }
     >
-      <CheckCircle2 className="h-3.5 w-3.5" />
-      {cell.rank && <span className="text-[10px] font-bold">#{cell.rank}</span>}
+      {mentioned ? <Check className="h-3.5 w-3.5" /> : <X className="h-3 w-3" />}
+      {mentioned && cell.rank ? (
+        <span className="text-[10px] font-bold">#{cell.rank}</span>
+      ) : null}
     </div>
   );
 
-  if (!onClick) {
-    return <div className="flex justify-center">{Inner}</div>;
-  }
+  if (!onClick) return <div className="flex justify-center">{inner}</div>;
 
   return (
     <div className="flex justify-center">
       <button
         type="button"
         onClick={onClick}
-        className="transition-transform hover:scale-110 focus:outline-none"
+        className="rounded-lg transition-transform duration-150 hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
       >
-        {Inner}
+        {inner}
       </button>
     </div>
   );
 }
 
-export function HeatmapLegend() {
+function HeatmapLegend() {
+  const items = [
+    { label: "ポジティブ", color: "var(--success)" },
+    { label: "中立", color: "var(--primary)" },
+    { label: "ネガティブ", color: "var(--destructive)" },
+  ];
   return (
-    <div className="flex flex-wrap gap-1.5 text-[11px]">
-      <Badge variant="outline" className="gap-1 border-emerald-500/20 bg-emerald-500/8 text-emerald-400">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-        ポジティブ
-      </Badge>
-      <Badge variant="outline" className="gap-1 border-sky-500/20 bg-sky-500/8 text-sky-400">
-        <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-        中立
-      </Badge>
-      <Badge variant="outline" className="gap-1 border-rose-500/20 bg-rose-500/8 text-rose-400">
-        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-        ネガティブ
-      </Badge>
-      <Badge variant="outline" className="gap-1 border-white/8 text-muted-foreground">
-        <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-white/[0.04] pt-3 text-[10px] text-muted-foreground">
+      {items.map((it) => (
+        <span key={it.label} className="flex items-center gap-1.5">
+          <span
+            className="h-2.5 w-2.5 rounded-[3px]"
+            style={{ backgroundColor: it.color }}
+          />
+          {it.label}
+        </span>
+      ))}
+      <span className="flex items-center gap-1.5">
+        <span className="flex h-3 w-3 items-center justify-center rounded-[3px] border border-white/10 bg-white/[0.04]">
+          <X className="h-2 w-2 text-muted-foreground/70" />
+        </span>
         言及なし
-      </Badge>
+      </span>
+      <span className="flex items-center gap-1.5">
+        <Minus className="h-3 w-3 text-muted-foreground/30" />
+        未計測
+      </span>
     </div>
   );
 }

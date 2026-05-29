@@ -259,6 +259,43 @@ export const fetchMentionsByCountry = unstable_cache(
   { tags: [CACHE_TAG, "country"], revalidate: CACHE_TTL_SECONDS },
 );
 
+export interface LocaleRow {
+  code: string;
+  country_code: string;
+  country_name: string;
+  country_name_ja: string;
+  flag: string;
+  active: boolean;
+}
+
+// Active markets for the locale switcher. Fails soft to Japan-only if the
+// `locales` table is not present in this environment.
+export const fetchLocales = unstable_cache(
+  async () => {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from("locales")
+      .select("code, country_code, country_name, country_name_ja, flag, active")
+      .eq("active", true)
+      .order("code");
+    if (error) {
+      return [
+        {
+          code: "ja",
+          country_code: "JP",
+          country_name: "Japan",
+          country_name_ja: "日本",
+          flag: "🇯🇵",
+          active: true,
+        },
+      ] as LocaleRow[];
+    }
+    return (data ?? []) as LocaleRow[];
+  },
+  ["locales-active"],
+  { tags: [CACHE_TAG, "locales"], revalidate: CACHE_TTL_SECONDS },
+);
+
 export function computeKpis(results: LatestResultRow[]) {
   const total = results.length;
   const mentioned = results.filter((r) => r.mentioned).length;

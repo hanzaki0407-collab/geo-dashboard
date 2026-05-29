@@ -7,7 +7,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  /* Wire the Japanese display font (loaded in root layout as --font-noto-jp)
+     into the `font-sans` utility so the UI actually uses Noto Sans JP. */
+  --font-sans: var(--font-noto-jp), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -27,6 +30,8 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -39,6 +44,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-card-elevated: var(--card-elevated);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -46,41 +52,56 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.32), 0 10px 28px -16px rgba(0, 0, 0, 0.55);
+  --shadow-pop: 0 16px 48px -12px rgba(0, 0, 0, 0.62);
+  --shadow-glow: 0 0 0 1px color-mix(in srgb, var(--primary) 32%, transparent),
+    0 8px 28px -10px color-mix(in srgb, var(--primary) 45%, transparent);
 }
 
+/*
+  Refined dark theme. Restraint over color: one blue accent, a cohesive
+  cool chart palette (no rainbow), semantic green/red reserved for sentiment.
+  Deeper background + layered surfaces (card / card-elevated) for quiet depth.
+*/
 :root {
-  --background: #111118;
-  --foreground: #e8e8ef;
-  --card: #1a1a24;
-  --card-foreground: #e8e8ef;
-  --popover: #1a1a24;
-  --popover-foreground: #e8e8ef;
+  --background: #0c0c13;
+  --foreground: #e9e9f1;
+  --card: #15151f;
+  --card-elevated: #1b1b28;
+  --card-foreground: #e9e9f1;
+  --popover: #17171f;
+  --popover-foreground: #e9e9f1;
   --primary: #4f6ef7;
   --primary-foreground: #ffffff;
-  --secondary: #21212e;
-  --secondary-foreground: #d0d0dc;
-  --muted: #21212e;
-  --muted-foreground: #6b6b80;
-  --accent: #262636;
-  --accent-foreground: #d8d8e4;
-  --destructive: #ef4444;
-  --border: rgba(255, 255, 255, 0.06);
-  --input: rgba(255, 255, 255, 0.08);
+  --secondary: #1e1e2b;
+  --secondary-foreground: #d3d3df;
+  --muted: #1c1c28;
+  --muted-foreground: #7c7c92;
+  --accent: #23233a;
+  --accent-foreground: #dadae6;
+  --destructive: #f1646c;
+  --success: #2bb673;
+  --warning: #e0a23c;
+  --border: rgba(255, 255, 255, 0.07);
+  --input: rgba(255, 255, 255, 0.09);
   --ring: #4f6ef7;
-  --chart-1: #10b981;
-  --chart-2: #6366f1;
-  --chart-3: #a855f7;
-  --chart-4: #f59e0b;
-  --chart-5: #06b6d4;
+  /* Cohesive cool palette + one warm accent, used sparingly. */
+  --chart-1: #5b8def;
+  --chart-2: #2bb3a3;
+  --chart-3: #8a7cf0;
+  --chart-4: #e0a23c;
+  --chart-5: #5a6a8c;
   --radius: 0.875rem;
-  --sidebar: #141420;
-  --sidebar-foreground: #8888a0;
+  --sidebar: #101019;
+  --sidebar-foreground: #8a8aa2;
   --sidebar-primary: #4f6ef7;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1e1e2e;
-  --sidebar-accent-foreground: #d0d0dc;
-  --sidebar-border: rgba(255, 255, 255, 0.05);
+  --sidebar-accent: #1c1c2b;
+  --sidebar-accent-foreground: #d3d3df;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
   --sidebar-ring: #4f6ef7;
+  /* Liquid-button defaults (overridable per instance via --liquid-color). */
+  --liquid-color: #6f8bff;
 }
 
 @layer base {
@@ -89,34 +110,137 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   html {
     @apply font-sans;
   }
+  /* Refined custom scrollbar for the dark surface. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
 }
 
-/* Recommended backlink — soft glow + pulse to draw attention */
-@keyframes recommendedGlow {
-  0%, 100% {
-    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.18), 0 0 12px rgba(16, 185, 129, 0.0);
-    background-color: rgba(16, 185, 129, 0.03);
+/* ── Liquid button: water pools up from the bottom on click ──────────────
+   The fill rises with a soft overshoot, holds briefly, then fades away —
+   "水が溜まる" then settles. Driven by [data-filling="true"] toggled in JS. */
+@keyframes liquidFill {
+  0% {
+    transform: translateY(100%);
+    opacity: 0.95;
+  }
+  52% {
+    transform: translateY(-3%);
+    opacity: 1;
+  }
+  66% {
+    transform: translateY(0%);
+    opacity: 1;
+  }
+  82% {
+    transform: translateY(0%);
+    opacity: 0.78;
+  }
+  100% {
+    transform: translateY(0%);
+    opacity: 0;
+  }
+}
+@keyframes liquidSlosh {
+  0%,
+  100% {
+    border-radius: 46% 54% 0 0 / 20px 24px 0 0;
+    transform: translateX(-2%);
   }
   50% {
-    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.5), 0 0 16px rgba(16, 185, 129, 0.35);
-    background-color: rgba(16, 185, 129, 0.10);
+    border-radius: 56% 44% 0 0 / 24px 20px 0 0;
+    transform: translateX(2%);
+  }
+}
+.liquid-fill {
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  bottom: 0;
+  height: 122%;
+  transform: translateY(100%);
+  background: var(--liquid-color);
+  border-radius: 46% 54% 0 0 / 20px 24px 0 0;
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform, opacity;
+}
+[data-filling="true"] .liquid-fill {
+  animation: liquidFill 760ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    liquidSlosh 760ms ease-in-out;
+}
+
+/* Recommended backlink — soft glow + pulse to draw attention. */
+@keyframes recommendedGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(43, 182, 115, 0.18), 0 0 12px rgba(43, 182, 115, 0);
+    background-color: rgba(43, 182, 115, 0.03);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgba(43, 182, 115, 0.5), 0 0 16px rgba(43, 182, 115, 0.32);
+    background-color: rgba(43, 182, 115, 0.1);
   }
 }
 .recommended-backlink {
   animation: recommendedGlow 2.4s ease-in-out infinite;
 }
 @keyframes recommendedPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.55; transform: scale(0.92); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
 }
 .recommended-pulse {
   animation: recommendedPulse 1.6s ease-in-out infinite;
 }
+
+/* Gentle entrance for cards/sections. */
+@keyframes riseIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise-in {
+  animation: riseIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  [data-filling="true"] .liquid-fill {
+    animation: none;
+    opacity: 0;
+  }
   .recommended-backlink,
-  .recommended-pulse { animation: none; }
+  .recommended-pulse,
+  .rise-in {
+    animation: none;
+  }
 }

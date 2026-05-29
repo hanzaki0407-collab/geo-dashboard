@@ -464,11 +464,19 @@ function CountryBar({
 
 interface WorldHeatmapProps {
   data: MentionsByCountryRow[];
+  selectedLocale?: string;
 }
 
-export function WorldHeatmap({ data }: WorldHeatmapProps) {
+export function WorldHeatmap({ data, selectedLocale }: WorldHeatmapProps) {
   const [region, setRegion] = useState<string>("\u5168\u4E16\u754C");
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
+
+  // Sync the globe focus with the sidebar market (locale) switcher.
+  useEffect(() => {
+    if (!selectedLocale || selectedLocale === "ja") return;
+    const row = data.find((d) => d.locale === selectedLocale);
+    if (row) setSelectedCode(row.country_code);
+  }, [selectedLocale, data]);
 
   // Inbound view shows only countries that have at least one mention.
   // 0% countries are noise for this report and were hiding the real signal.

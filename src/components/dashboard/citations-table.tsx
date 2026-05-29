@@ -195,7 +195,7 @@ export function CitationsTable({
                       )}
                       <div className="mt-1 h-[3px] w-full overflow-hidden rounded-full bg-white/[0.04]">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all"
+                          className="h-full rounded-full bg-gradient-to-r from-amber-400/80 to-amber-500 transition-all"
                           style={{ width: `${widthPct}%` }}
                         />
                       </div>
