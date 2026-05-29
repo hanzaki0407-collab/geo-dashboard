@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Building2,
   ChevronDown,
   ChevronRight,
   FileText,
@@ -72,27 +71,25 @@ export function Sidebar({
   };
 
   return (
-    <aside className="flex w-[264px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
-      <div className="flex h-20 items-center px-5">
-        <div className="rounded-lg bg-white px-2 py-1.5 shadow-sm">
-          <Image
-            src="/hanchan-creative-logo.png"
-            alt="HANCHAN creative"
-            width={220}
-            height={70}
-            priority
-            className="h-11 w-auto object-contain"
-          />
-        </div>
+    <aside className="flex w-[260px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+      <div className="flex h-16 items-center border-b border-sidebar-border px-4">
+        <Image
+          src="/hanchan-creative-logo.png"
+          alt="HANCHAN creative"
+          width={360}
+          height={201}
+          priority
+          className="logo-screen h-12 w-auto max-w-full object-contain object-left"
+        />
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 pb-4">
+      <div className="flex-1 overflow-y-auto px-3 py-4">
         <MarketSwitcher locales={locales} />
         <BrandFilterTree />
 
-        <SidebarLabel className="mt-6">ナビゲーション</SidebarLabel>
+        <div className="cc-eyebrow mt-6 mb-2 px-3">Navigation</div>
         <ul className="space-y-0.5">
-          {MAIN_MENU.map((item) => {
+          {MAIN_MENU.map((item, i) => {
             const Icon = item.icon;
             const isActive = activeSection === item.id;
             return (
@@ -101,7 +98,7 @@ export function Sidebar({
                   href={`#${item.id}`}
                   onClick={(e) => handleNav(e, item.id)}
                   className={cn(
-                    "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors",
+                    "relative flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors",
                     isActive
                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
                       : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
@@ -109,11 +106,21 @@ export function Sidebar({
                 >
                   <span
                     className={cn(
-                      "absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary transition-opacity",
-                      isActive ? "opacity-100" : "opacity-0",
+                      "absolute top-1/2 left-0 h-5 w-[2px] -translate-y-1/2 rounded-full bg-signal transition-opacity",
+                      isActive
+                        ? "opacity-100 shadow-[0_0_8px_var(--signal)]"
+                        : "opacity-0",
                     )}
                   />
-                  <Icon className="h-[17px] w-[17px]" />
+                  <span
+                    className={cn(
+                      "font-mono text-[10px] tabular-nums",
+                      isActive ? "text-signal" : "text-sidebar-foreground/40",
+                    )}
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <Icon className="h-[16px] w-[16px]" />
                   <span className="flex-1">{item.label}</span>
                 </a>
               </li>
@@ -122,13 +129,11 @@ export function Sidebar({
         </ul>
       </div>
 
-      <div className="space-y-1.5 border-t border-sidebar-border/60 p-3">
+      <div className="space-y-1.5 border-t border-sidebar-border p-3">
         {userEmail && (
           <div className="px-3 pt-1" title={userEmail}>
-            <div className="text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground/40">
-              Signed in as
-            </div>
-            <div className="truncate text-[12px] font-medium text-sidebar-foreground/80">
+            <div className="cc-eyebrow">Operator</div>
+            <div className="truncate font-mono text-[11px] text-sidebar-foreground/80">
               {userEmail}
             </div>
           </div>
@@ -136,9 +141,9 @@ export function Sidebar({
         <form action="/auth/logout" method="post">
           <button
             type="submit"
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
-            <LogOut className="h-[17px] w-[17px]" />
+            <LogOut className="h-[16px] w-[16px]" />
             ログアウト
           </button>
         </form>
@@ -147,40 +152,21 @@ export function Sidebar({
   );
 }
 
-function SidebarLabel({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "mb-2 px-3 text-[10px] font-semibold tracking-[0.18em] text-sidebar-foreground/50 uppercase",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-/** Market / language switcher. Forward-compat for multilingual inbound work;
-    drives the world map focus today, the main views next cycle. */
+/** Market / language switcher. Drives the world map focus today; forward-compat
+    for multilingual inbound work next cycle. */
 function MarketSwitcher({ locales }: { locales: LocaleRow[] }) {
   const { selectedLocale, setLocale } = useFilters();
   if (locales.length <= 1) return null;
   return (
     <div className="mt-1 mb-5">
-      <SidebarLabel className="flex items-center gap-1.5">
-        <Globe className="h-3 w-3" /> 市場（言語）
-      </SidebarLabel>
+      <div className="cc-eyebrow mb-2 flex items-center gap-1.5 px-3">
+        <Globe className="h-3 w-3" /> Market
+      </div>
       <div className="relative px-1">
         <select
           value={selectedLocale}
           onChange={(e) => setLocale(e.target.value)}
-          className="w-full appearance-none rounded-lg border border-sidebar-border bg-sidebar-accent/40 px-3 py-2 text-[12px] font-medium text-sidebar-accent-foreground outline-none transition-colors hover:border-primary/40 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="w-full appearance-none rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-2 text-[12px] font-medium text-sidebar-accent-foreground outline-none transition-colors hover:border-signal/40 focus-visible:border-signal focus-visible:ring-2 focus-visible:ring-signal/30"
         >
           {locales.map((l) => (
             <option key={l.code} value={l.code} className="bg-popover text-foreground">
@@ -221,9 +207,9 @@ function BrandFilterTree() {
 
   return (
     <div id="brand-filter">
-      <SidebarLabel className="flex items-center gap-1.5">
-        <Building2 className="h-3 w-3" /> ブランドを選ぶ
-      </SidebarLabel>
+      <div className="cc-eyebrow mb-2 flex items-center gap-1.5 px-3">
+        <LayoutGrid className="h-3 w-3" /> Targets
+      </div>
 
       <ul className="space-y-1 px-1">
         {brands.map((b) => {
@@ -234,7 +220,10 @@ function BrandFilterTree() {
           ).length;
           const partial = checkedKw > 0 && checkedKw < b.keywords.length;
           return (
-            <li key={b.id} className="rounded-lg bg-sidebar-accent/30">
+            <li
+              key={b.id}
+              className="rounded-md border border-transparent bg-sidebar-accent/30 transition-colors hover:border-sidebar-border"
+            >
               <div className="flex items-center gap-1 px-2 py-1.5">
                 <button
                   type="button"
@@ -255,13 +244,16 @@ function BrandFilterTree() {
                     onCheckedChange={() => toggleBrand(b.id)}
                     aria-label={b.name}
                   />
-                  <span className="truncate" title={b.name}>
+                  <span className="flex-1 truncate" title={b.name}>
                     {b.name}
+                  </span>
+                  <span className="font-mono text-[9px] tabular-nums text-sidebar-foreground/40">
+                    {checkedKw}/{b.keywords.length}
                   </span>
                 </label>
               </div>
               {open && b.keywords.length > 0 && (
-                <ul className="mb-1.5 ml-5 mr-2 space-y-0.5 border-l border-sidebar-border/60 pl-2">
+                <ul className="mr-2 mb-1.5 ml-5 space-y-0.5 border-l border-sidebar-border pl-2">
                   {b.keywords.map((k) => (
                     <li key={k}>
                       <label className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-[11px] text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent">
@@ -287,17 +279,17 @@ function BrandFilterTree() {
         <button
           type="button"
           onClick={selectAll}
-          className="text-[11px] font-medium text-sidebar-foreground/55 transition-colors hover:text-primary"
+          className="font-mono text-[10px] tracking-wider text-sidebar-foreground/55 uppercase transition-colors hover:text-signal"
         >
-          全選択
+          all
         </button>
         <span className="text-sidebar-foreground/20">·</span>
         <button
           type="button"
           onClick={clearAll}
-          className="text-[11px] font-medium text-sidebar-foreground/55 transition-colors hover:text-primary"
+          className="font-mono text-[10px] tracking-wider text-sidebar-foreground/55 uppercase transition-colors hover:text-signal"
         >
-          全解除
+          none
         </button>
         {isFiltered && (
           <LiquidButton

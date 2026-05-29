@@ -157,6 +157,7 @@ export function HeatmapMatrix({ results, selection, onSelect }: HeatmapProps) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div>
+            <div className="cc-eyebrow mb-1">Matrix // mention grid</div>
             <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
               ブランド × LLM 言及マトリクス
               {showSample && (

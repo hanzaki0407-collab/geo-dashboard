@@ -7,11 +7,11 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* Wire the Japanese display font (loaded in root layout as --font-noto-jp)
-     into the `font-sans` utility so the UI actually uses Noto Sans JP. */
+  /* Noto Sans JP for Japanese body; JetBrains Mono for numerals/codes/labels. */
   --font-sans: var(--font-noto-jp), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-jetbrains), ui-monospace, "SFMono-Regular", Menlo,
+    Consolas, monospace;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -32,6 +32,7 @@
   --color-destructive: var(--destructive);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-signal: var(--signal);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -52,56 +53,55 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.32), 0 10px 28px -16px rgba(0, 0, 0, 0.55);
-  --shadow-pop: 0 16px 48px -12px rgba(0, 0, 0, 0.62);
-  --shadow-glow: 0 0 0 1px color-mix(in srgb, var(--primary) 32%, transparent),
-    0 8px 28px -10px color-mix(in srgb, var(--primary) 45%, transparent);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -18px rgba(0, 0, 0, 0.7);
+  --shadow-pop: 0 16px 48px -12px rgba(0, 0, 0, 0.7);
 }
 
 /*
-  Refined dark theme. Restraint over color: one blue accent, a cohesive
-  cool chart palette (no rainbow), semantic green/red reserved for sentiment.
-  Deeper background + layered surfaces (card / card-elevated) for quiet depth.
+  COMMAND CENTER theme — near-black "observatory" surface, monospace data,
+  signal-green status glow (ties to the HANCHAN mark), one blue data accent.
+  Restraint over color; the glow + grid do the visual work, not hues.
 */
 :root {
-  --background: #0c0c13;
-  --foreground: #e9e9f1;
-  --card: #15151f;
-  --card-elevated: #1b1b28;
-  --card-foreground: #e9e9f1;
-  --popover: #17171f;
-  --popover-foreground: #e9e9f1;
-  --primary: #4f6ef7;
-  --primary-foreground: #ffffff;
-  --secondary: #1e1e2b;
-  --secondary-foreground: #d3d3df;
-  --muted: #1c1c28;
-  --muted-foreground: #7c7c92;
-  --accent: #23233a;
-  --accent-foreground: #dadae6;
-  --destructive: #f1646c;
-  --success: #2bb673;
-  --warning: #e0a23c;
-  --border: rgba(255, 255, 255, 0.07);
-  --input: rgba(255, 255, 255, 0.09);
-  --ring: #4f6ef7;
-  /* Cohesive cool palette + one warm accent, used sparingly. */
-  --chart-1: #5b8def;
-  --chart-2: #2bb3a3;
-  --chart-3: #8a7cf0;
-  --chart-4: #e0a23c;
-  --chart-5: #5a6a8c;
-  --radius: 0.875rem;
-  --sidebar: #101019;
-  --sidebar-foreground: #8a8aa2;
-  --sidebar-primary: #4f6ef7;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1c1c2b;
-  --sidebar-accent-foreground: #d3d3df;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-ring: #4f6ef7;
-  /* Liquid-button defaults (overridable per instance via --liquid-color). */
-  --liquid-color: #6f8bff;
+  --background: #06070b;
+  --foreground: #d9dde7;
+  --card: #0b0d14;
+  --card-elevated: #11141e;
+  --card-foreground: #d9dde7;
+  --popover: #0d0f17;
+  --popover-foreground: #eef1f6;
+  --primary: #4f8ff7;
+  --primary-foreground: #02040a;
+  --secondary: #161a25;
+  --secondary-foreground: #c7ccd8;
+  --muted: #12151e;
+  --muted-foreground: #6a7183;
+  --accent: #181d2a;
+  --accent-foreground: #d9dde7;
+  --destructive: #ff5a6a;
+  --success: #2fd98a;
+  --warning: #f0b440;
+  /* Signal green — the monitoring/live accent (matches the brand mark). */
+  --signal: #36e29a;
+  --border: rgba(255, 255, 255, 0.06);
+  --input: rgba(255, 255, 255, 0.08);
+  --ring: #4f8ff7;
+  /* Restrained cool palette + signal green + one warm. */
+  --chart-1: #4f8ff7;
+  --chart-2: #36e29a;
+  --chart-3: #7c83ff;
+  --chart-4: #f0b440;
+  --chart-5: #4a5573;
+  --radius: 0.625rem;
+  --sidebar: #05060a;
+  --sidebar-foreground: #767d8f;
+  --sidebar-primary: #4f8ff7;
+  --sidebar-primary-foreground: #02040a;
+  --sidebar-accent: #11151f;
+  --sidebar-accent-foreground: #c7ccd8;
+  --sidebar-border: rgba(255, 255, 255, 0.05);
+  --sidebar-ring: #4f8ff7;
+  --liquid-color: #36e29a;
 }
 
 @layer base {
@@ -116,7 +116,6 @@
   html {
     @apply font-sans;
   }
-  /* Refined custom scrollbar for the dark surface. */
   * {
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
@@ -126,17 +125,107 @@
     height: 8px;
   }
   *::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.1);
     border-radius: 9999px;
   }
   *::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.18);
   }
 }
 
-/* ── Liquid button: water pools up from the bottom on click ──────────────
-   The fill rises with a soft overshoot, holds briefly, then fades away —
-   "水が溜まる" then settles. Driven by [data-filling="true"] toggled in JS. */
+/* ── Command-center surface utilities ─────────────────────────────────── */
+
+/* Faint blueprint grid + top vignette for the main monitoring surface. */
+.cc-grid {
+  background-color: var(--background);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    radial-gradient(
+      120% 80% at 50% -10%,
+      color-mix(in srgb, var(--primary) 9%, transparent),
+      transparent 60%
+    );
+  background-size: 46px 46px, 46px 46px, 100% 100%;
+}
+
+/* Terminal panel: hairline ring + faint top sheen. */
+.cc-panel {
+  position: relative;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--card-elevated) 70%, transparent),
+    var(--card)
+  );
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+}
+.cc-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--primary) 35%, transparent),
+    transparent
+  );
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Mono "section label" tick used on panel headers. */
+.cc-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Glow helpers. */
+.glow-signal {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--signal) 40%, transparent),
+    0 0 18px -3px color-mix(in srgb, var(--signal) 55%, transparent);
+}
+.text-glow-signal {
+  color: var(--signal);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--signal) 55%, transparent);
+}
+.text-glow-primary {
+  text-shadow: 0 0 16px color-mix(in srgb, var(--primary) 55%, transparent);
+}
+
+/* Live status dot — breathing green ring. */
+@keyframes signalPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--signal) 55%, transparent);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--signal) 0%, transparent);
+    opacity: 0.75;
+  }
+}
+.signal-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--signal);
+  animation: signalPulse 2s ease-in-out infinite;
+}
+
+/* Logo on dark: drop the black backplate, keep the green glow. */
+.logo-screen {
+  mix-blend-mode: screen;
+}
+
+/* ── Liquid button: water pools up from the bottom on click ───────────── */
 @keyframes liquidFill {
   0% {
     transform: translateY(100%);
@@ -188,16 +277,16 @@
     liquidSlosh 760ms ease-in-out;
 }
 
-/* Recommended backlink — soft glow + pulse to draw attention. */
+/* Recommended backlink — soft glow + pulse (signal green). */
 @keyframes recommendedGlow {
   0%,
   100% {
-    box-shadow: 0 0 0 1px rgba(43, 182, 115, 0.18), 0 0 12px rgba(43, 182, 115, 0);
-    background-color: rgba(43, 182, 115, 0.03);
+    box-shadow: 0 0 0 1px rgba(54, 226, 154, 0.18), 0 0 12px rgba(54, 226, 154, 0);
+    background-color: rgba(54, 226, 154, 0.03);
   }
   50% {
-    box-shadow: 0 0 0 1px rgba(43, 182, 115, 0.5), 0 0 16px rgba(43, 182, 115, 0.32);
-    background-color: rgba(43, 182, 115, 0.1);
+    box-shadow: 0 0 0 1px rgba(54, 226, 154, 0.5), 0 0 16px rgba(54, 226, 154, 0.3);
+    background-color: rgba(54, 226, 154, 0.09);
   }
 }
 .recommended-backlink {
@@ -218,7 +307,6 @@
   animation: recommendedPulse 1.6s ease-in-out infinite;
 }
 
-/* Gentle entrance for cards/sections. */
 @keyframes riseIn {
   0% {
     opacity: 0;
@@ -240,7 +328,8 @@
   }
   .recommended-backlink,
   .recommended-pulse,
-  .rise-in {
+  .rise-in,
+  .signal-dot {
     animation: none;
   }
 }

@@ -20,6 +20,7 @@ export function SnippetsList({ results }: SnippetsListProps) {
   return (
     <Card className="border border-border bg-card">
       <CardHeader className="pb-3">
+        <div className="cc-eyebrow mb-1">Snippets // LLM descriptions</div>
         <CardTitle className="text-sm font-semibold text-foreground">
           LLM紹介文
         </CardTitle>

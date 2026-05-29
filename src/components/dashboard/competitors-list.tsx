@@ -61,6 +61,7 @@ export function CompetitorsList({ results }: CompetitorsListProps) {
   return (
     <div className="flex flex-col gap-3">
       <div>
+        <div className="cc-eyebrow mb-1">Ranking // GEO gap</div>
         <h2 className="text-sm font-semibold text-foreground">
           LLMランキング（GEOギャップ分析）
         </h2>

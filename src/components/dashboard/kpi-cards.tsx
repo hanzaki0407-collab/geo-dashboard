@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Building2, Sparkles, Target, ThumbsUp } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface KpiCardsProps {
   kpis: {
@@ -14,69 +15,82 @@ interface KpiCardsProps {
 }
 
 export function KpiCards({ kpis, brandCount }: KpiCardsProps) {
-  // No invented deltas — every number traces to the current selection.
+  // Terminal "readouts" — mono numerals, glow on the live metrics. No invented
+  // deltas; every value traces to the current selection.
   const items = [
     {
+      code: "MENTION",
       label: "総言及率",
-      value: `${kpis.mentionRate}%`,
-      sub: `${kpis.mentioned} / ${kpis.total} クエリで言及`,
+      value: `${kpis.mentionRate}`,
+      unit: "%",
+      sub: `${kpis.mentioned}/${kpis.total} queries`,
       icon: Target,
-      color: "#4f6ef7",
+      glow: "primary" as const,
     },
     {
+      code: "COVERAGE",
       label: "LLMカバレッジ",
-      value: `${kpis.providerCoverage}/4`,
-      sub: "言及のあったLLM数",
+      value: `${kpis.providerCoverage}`,
+      unit: "/4",
+      sub: "providers hit",
       icon: Sparkles,
-      color: "#8a7cf0",
+      glow: "signal" as const,
     },
     {
+      code: "POSITIVE",
       label: "ポジティブ言及",
       value: `${kpis.positive}`,
-      sub: kpis.negative > 0 ? `ネガティブ ${kpis.negative} 件` : "ネガティブなし",
+      unit: "",
+      sub: kpis.negative > 0 ? `negative ${kpis.negative}` : "no negatives",
       icon: ThumbsUp,
-      color: "#2bb673",
+      glow: "signal" as const,
     },
     {
-      label: "追跡ブランド数",
+      code: "TARGETS",
+      label: "追跡ブランド",
       value: `${brandCount}`,
-      sub: "週次で言及状況を観測",
+      unit: "",
+      sub: "tracked weekly",
       icon: Building2,
-      color: "#7c8196",
+      glow: "muted" as const,
     },
   ];
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {items.map((item) => {
-        const Icon = item.icon;
+      {items.map((it) => {
+        const Icon = it.icon;
+        const numClass =
+          it.glow === "primary"
+            ? "text-primary text-glow-primary"
+            : it.glow === "signal"
+              ? "text-glow-signal"
+              : "text-foreground";
         return (
-          <Card
-            key={item.label}
-            className="rise-in border-border bg-card shadow-[var(--shadow-card)] transition-all duration-200 hover:-translate-y-0.5 hover:border-white/10"
-          >
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="text-[11px] font-medium text-muted-foreground">
-                    {item.label}
-                  </div>
-                  <div className="mt-1.5 text-2xl font-bold tracking-tight tabular-nums text-foreground">
-                    {item.value}
-                  </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    {item.sub}
-                  </div>
-                </div>
-                <div
-                  className="flex h-9 w-9 items-center justify-center rounded-lg"
-                  style={{ backgroundColor: `${item.color}1f` }}
+          <Card key={it.code} className="rise-in">
+            <CardContent className="px-4">
+              <div className="flex items-center justify-between">
+                <span className="cc-eyebrow">{it.code}</span>
+                <Icon className="h-4 w-4 text-muted-foreground/45" />
+              </div>
+              <div className="mt-3 flex items-baseline gap-0.5">
+                <span
+                  className={cn(
+                    "font-mono text-[30px] leading-none font-semibold tabular-nums",
+                    numClass,
+                  )}
                 >
-                  <Icon
-                    className="h-[18px] w-[18px]"
-                    style={{ color: item.color }}
-                  />
-                </div>
+                  {it.value}
+                </span>
+                <span className="font-mono text-base text-muted-foreground">
+                  {it.unit}
+                </span>
+              </div>
+              <div className="mt-2.5 flex items-center justify-between gap-2">
+                <span className="text-[11px] text-foreground/70">{it.label}</span>
+                <span className="truncate font-mono text-[10px] text-muted-foreground/55">
+                  {it.sub}
+                </span>
               </div>
             </CardContent>
           </Card>

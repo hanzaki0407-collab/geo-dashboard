@@ -29,7 +29,7 @@ export default async function Home() {
   return (
     <>
       <Topbar lastWeekStart={latestRun?.week_start ?? null} />
-      <main className="flex-1 overflow-y-auto scroll-smooth p-5">
+      <main className="cc-grid flex-1 overflow-y-auto scroll-smooth p-5">
         <DashboardContent
           results={results}
           rates={rates}

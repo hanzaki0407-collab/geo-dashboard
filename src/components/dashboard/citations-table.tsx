@@ -106,6 +106,7 @@ export function CitationsTable({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
+            <div className="cc-eyebrow mb-1">Citations // source domains</div>
             <CardTitle className="text-sm font-semibold text-foreground">{title}</CardTitle>
             {filterLabel && (
               <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-400">

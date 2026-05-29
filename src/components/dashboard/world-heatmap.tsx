@@ -522,7 +522,7 @@ export function WorldHeatmap({ data, selectedLocale }: WorldHeatmapProps) {
       <CardContent className="pt-0">
         <div className="mb-5 flex items-baseline gap-2">
           <Globe className="h-5 w-5 text-muted-foreground" />
-          <span className="text-3xl font-bold text-foreground">
+          <span className="text-glow-signal font-mono text-3xl font-bold tabular-nums">
             {totalMentioned}/{totalQueries}
           </span>
           <span className="text-xs text-muted-foreground">

@@ -88,6 +88,7 @@ export function TrendChart({ rates }: TrendChartProps) {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
           <div>
+            <div className="cc-eyebrow mb-1">Trend // mention rate</div>
             <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
               LLM別 言及率推移
               {showSample && (
