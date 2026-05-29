@@ -38,6 +38,7 @@ interface FilterContextValue {
   selectedKeywords: Set<string>;
   selectedLocale: string;
   cell: CellSelection | null;
+  activeView: string;
 
   allBrandsSelected: boolean;
   allKeywordsSelected: boolean;
@@ -49,6 +50,7 @@ interface FilterContextValue {
   selectAll: () => void;
   clearAll: () => void;
   setCell: (cell: CellSelection | null) => void;
+  setActiveView: (view: string) => void;
 }
 
 const FilterContext = createContext<FilterContextValue | null>(null);
@@ -72,6 +74,9 @@ export function FilterProvider({
   );
   const [selectedLocale, setSelectedLocale] = useState("ja");
   const [cell, setCell] = useState<CellSelection | null>(null);
+  // Which section the main area shows. The sidebar nav switches this (a real
+  // view switch, not a scroll anchor). "top" = full overview.
+  const [activeView, setActiveView] = useState("top");
 
   // One user toggle at a time, so deriving "next" from the closed-over current
   // sets is correct (and matches the prior, proven sidebar logic).
@@ -142,6 +147,7 @@ export function FilterProvider({
       selectedKeywords,
       selectedLocale,
       cell,
+      activeView,
       allBrandsSelected,
       allKeywordsSelected,
       isFiltered: !(allBrandsSelected && allKeywordsSelected),
@@ -151,6 +157,7 @@ export function FilterProvider({
       selectAll,
       clearAll,
       setCell,
+      setActiveView,
     }),
     [
       brands,
@@ -160,6 +167,7 @@ export function FilterProvider({
       selectedKeywords,
       selectedLocale,
       cell,
+      activeView,
       allBrandsSelected,
       allKeywordsSelected,
       toggleBrand,

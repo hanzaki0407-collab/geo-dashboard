@@ -311,7 +311,7 @@ function CellPill({
   if (!cell) {
     return (
       <div
-        className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.02] text-muted-foreground/25"
+        className="mx-auto flex h-10 w-10 items-center justify-center text-muted-foreground/25"
         title="未計測"
       >
         <Minus className="h-3.5 w-3.5" />
@@ -320,33 +320,53 @@ function CellPill({
   }
 
   const mentioned = cell.mentioned === true;
-  const tone = !mentioned
-    ? "border border-white/10 bg-white/[0.04] text-muted-foreground/70"
-    : cell.sentiment === "positive"
-      ? "bg-[var(--success)] text-white"
-      : cell.sentiment === "negative"
-        ? "bg-[var(--destructive)] text-white"
-        : "bg-primary text-primary-foreground";
+  const sentimentColor =
+    cell.sentiment === "negative"
+      ? "var(--destructive)"
+      : cell.sentiment === "positive"
+        ? "var(--success)"
+        : "var(--primary)";
 
-  const inner = (
+  // Rank is the hero: the number = the position the brand was listed at in the
+  // LLM's answer. Sentiment is a soft tint; #1 gets a glow.
+  const inner = mentioned ? (
     <div
       className={cn(
-        "flex h-8 min-w-8 items-center justify-center gap-0.5 rounded-lg px-1.5",
-        tone,
+        "mx-auto flex h-10 w-10 items-center justify-center rounded-xl border transition-transform",
+        cell.rank === 1 && "shadow-[0_0_14px_-2px_var(--cell-color)]",
         selected && "ring-2 ring-primary ring-offset-2 ring-offset-card",
       )}
-      title={
-        mentioned
-          ? `言及あり${cell.rank ? ` · 順位${cell.rank}位` : ""}${
-              cell.sentiment ? ` · ${cell.sentiment}` : ""
-            } · クリックで引用元を絞り込み`
-          : "言及なし · クリックで引用元を確認"
+      style={
+        {
+          "--cell-color": sentimentColor,
+          backgroundColor: `color-mix(in srgb, ${sentimentColor} 14%, transparent)`,
+          borderColor: `color-mix(in srgb, ${sentimentColor} 38%, transparent)`,
+        } as React.CSSProperties
       }
+      title={`言及あり${cell.rank ? ` · ${cell.rank}位` : ""}${
+        cell.sentiment ? ` · ${cell.sentiment}` : ""
+      } · クリックで引用元を絞り込み`}
     >
-      {mentioned ? <Check className="h-3.5 w-3.5" /> : <X className="h-3 w-3" />}
-      {mentioned && cell.rank ? (
-        <span className="text-[10px] font-bold">#{cell.rank}</span>
-      ) : null}
+      {cell.rank ? (
+        <span
+          className="flex items-baseline gap-px"
+          style={{ color: sentimentColor }}
+        >
+          <span className="text-base font-bold tabular-nums leading-none">
+            {cell.rank}
+          </span>
+          <span className="text-[8px] font-medium opacity-70">位</span>
+        </span>
+      ) : (
+        <Check className="h-4 w-4" style={{ color: sentimentColor }} />
+      )}
+    </div>
+  ) : (
+    <div
+      className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.02] text-muted-foreground/45"
+      title="言及なし · クリックで引用元を確認"
+    >
+      <X className="h-3.5 w-3.5" />
     </div>
   );
 
@@ -372,25 +392,22 @@ function HeatmapLegend() {
     { label: "ネガティブ", color: "var(--destructive)" },
   ];
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-white/[0.04] pt-3 text-[10px] text-muted-foreground">
+    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/[0.05] pt-3.5 text-[11px] text-muted-foreground">
+      <span className="font-medium text-foreground/75">
+        数字 = AI回答での掲載順位（1が最上位）
+      </span>
       {items.map((it) => (
         <span key={it.label} className="flex items-center gap-1.5">
           <span
-            className="h-2.5 w-2.5 rounded-[3px]"
+            className="h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: it.color }}
           />
           {it.label}
         </span>
       ))}
       <span className="flex items-center gap-1.5">
-        <span className="flex h-3 w-3 items-center justify-center rounded-[3px] border border-white/10 bg-white/[0.04]">
-          <X className="h-2 w-2 text-muted-foreground/70" />
-        </span>
+        <X className="h-3 w-3 text-muted-foreground/50" />
         言及なし
-      </span>
-      <span className="flex items-center gap-1.5">
-        <Minus className="h-3 w-3 text-muted-foreground/30" />
-        未計測
       </span>
     </div>
   );

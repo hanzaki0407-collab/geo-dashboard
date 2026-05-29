@@ -63,21 +63,22 @@
   Restraint over color; the glow + grid do the visual work, not hues.
 */
 :root {
-  --background: #06070b;
-  --foreground: #d9dde7;
-  --card: #0b0d14;
-  --card-elevated: #11141e;
-  --card-foreground: #d9dde7;
-  --popover: #0d0f17;
-  --popover-foreground: #eef1f6;
+  /* Pure-black background; neutral dark surfaces (no color cast). */
+  --background: #000000;
+  --foreground: #e4e4e7;
+  --card: #0f0f11;
+  --card-elevated: #17171a;
+  --card-foreground: #dddde1;
+  --popover: #0c0c0e;
+  --popover-foreground: #f1f1f3;
   --primary: #4f8ff7;
   --primary-foreground: #02040a;
-  --secondary: #161a25;
-  --secondary-foreground: #c7ccd8;
-  --muted: #12151e;
-  --muted-foreground: #6a7183;
-  --accent: #181d2a;
-  --accent-foreground: #d9dde7;
+  --secondary: #161619;
+  --secondary-foreground: #c9c9ce;
+  --muted: #121214;
+  --muted-foreground: #7a7a83;
+  --accent: #18181b;
+  --accent-foreground: #dddde1;
   --destructive: #ff5a6a;
   --success: #2fd98a;
   --warning: #f0b440;
@@ -92,13 +93,13 @@
   --chart-3: #7c83ff;
   --chart-4: #f0b440;
   --chart-5: #4a5573;
-  --radius: 0.625rem;
-  --sidebar: #05060a;
-  --sidebar-foreground: #767d8f;
+  --radius: 1rem;
+  --sidebar: #050506;
+  --sidebar-foreground: #7b7b83;
   --sidebar-primary: #4f8ff7;
   --sidebar-primary-foreground: #02040a;
-  --sidebar-accent: #11151f;
-  --sidebar-accent-foreground: #c7ccd8;
+  --sidebar-accent: #151517;
+  --sidebar-accent-foreground: #c9c9ce;
   --sidebar-border: rgba(255, 255, 255, 0.05);
   --sidebar-ring: #4f8ff7;
   --liquid-color: #36e29a;
@@ -137,52 +138,40 @@
 
 /* Faint blueprint grid + top vignette for the main monitoring surface. */
 .cc-grid {
-  background-color: var(--background);
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-    radial-gradient(
-      120% 80% at 50% -10%,
-      color-mix(in srgb, var(--primary) 9%, transparent),
-      transparent 60%
-    );
-  background-size: 46px 46px, 46px 46px, 100% 100%;
+  /* Pure black — no gradient wash. */
+  background-color: transparent;
 }
 
-/* Terminal panel: hairline ring + faint top sheen. */
+/* Ambient: two slow-drifting glows behind everything (depth, not noise). */
+@keyframes ambientDrift {
+  0% {
+    transform: translate3d(-3%, -2%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(3%, 3%, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(-3%, -2%, 0) scale(1);
+  }
+}
+/* Ambient background glow removed — flat black background per design. */
+
+/* Soft, rounded, elevated card — clean & modern (reference style). */
 .cc-panel {
   position: relative;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--card-elevated) 70%, transparent),
-    var(--card)
-  );
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1.4rem;
   box-shadow: var(--shadow-card);
 }
-.cc-panel::after {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--primary) 35%, transparent),
-    transparent
-  );
-  opacity: 0.6;
-  pointer-events: none;
-}
 
-/* Mono "section label" tick used on panel headers. */
+/* Clean small-caps section label (no longer mono). */
 .cc-eyebrow {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.22em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--muted-foreground);
+  color: color-mix(in srgb, var(--muted-foreground) 92%, transparent);
 }
 
 /* Glow helpers. */
@@ -321,6 +310,27 @@
   animation: riseIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Recommended ("狙い目") target reticle — a radar ping ring expands outward. */
+@keyframes targetPing {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.9;
+  }
+  70% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+.target-ping {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: targetPing 1.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-filling="true"] .liquid-fill {
     animation: none;
@@ -329,6 +339,7 @@
   .recommended-backlink,
   .recommended-pulse,
   .rise-in,
+  .target-ping,
   .signal-dot {
     animation: none;
   }

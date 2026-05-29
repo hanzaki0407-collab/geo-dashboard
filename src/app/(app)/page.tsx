@@ -5,6 +5,7 @@ import {
   fetchMentionRates,
   fetchTopDomains,
   fetchMentionsByCountry,
+  fetchInboundResults,
 } from "@/lib/data";
 import { Topbar } from "@/components/dashboard/topbar";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
@@ -16,26 +17,38 @@ import { DashboardContent } from "@/components/dashboard/dashboard-content";
 export const revalidate = 2592000;
 
 export default async function Home() {
-  const [latestRun, results, rates, domains, citations, countryMentions] =
-    await Promise.all([
-      fetchLatestRun(),
-      fetchLatestResults(),
-      fetchMentionRates(),
-      fetchTopDomains(10),
-      fetchCitations(),
-      fetchMentionsByCountry(),
-    ]);
+  const [
+    latestRun,
+    results,
+    rates,
+    domains,
+    citations,
+    countryMentions,
+    inboundResults,
+  ] = await Promise.all([
+    fetchLatestRun(),
+    fetchLatestResults(),
+    fetchMentionRates(),
+    fetchTopDomains(10),
+    fetchCitations(),
+    fetchMentionsByCountry(),
+    fetchInboundResults(),
+  ]);
 
   return (
     <>
       <Topbar lastWeekStart={latestRun?.week_start ?? null} />
-      <main className="cc-grid flex-1 overflow-y-auto scroll-smooth p-5">
+      <main
+        id="dashboard-scroll"
+        className="cc-grid flex-1 overflow-y-auto scroll-smooth p-4"
+      >
         <DashboardContent
           results={results}
           rates={rates}
           domains={domains}
           citations={citations}
           countryMentions={countryMentions}
+          inboundResults={inboundResults}
         />
       </main>
     </>

@@ -6,7 +6,9 @@ import type { LLMProvider, Sentiment } from "./types";
 // (POST /api/revalidate) called from collect.ts after each monthly run.
 // The TTL is a safety fallback, not the primary freshness mechanism.
 const CACHE_TTL_SECONDS = 2592000;
-const CACHE_TAG = "dashboard";
+// Shared cache tag for all dashboard data. Mutations (brand-actions.ts) call
+// revalidateTag(CACHE_TAG) to flush every cached query at once.
+export const CACHE_TAG = "dashboard";
 
 export const PROVIDERS: LLMProvider[] = ["gemini", "google_ai_mode", "chatgpt", "claude"];
 
@@ -257,6 +259,30 @@ export const fetchMentionsByCountry = unstable_cache(
   },
   ["mentions-by-country"],
   { tags: [CACHE_TAG, "country"], revalidate: CACHE_TTL_SECONDS },
+);
+
+// Latest results for every inbound (non-ja) locale, used to build the
+// country × LLM mention matrix. v_latest_results keeps one row per
+// brand × keyword × provider × locale, so locales are not collapsed.
+export const fetchInboundResults = unstable_cache(
+  async () => {
+    const supabase = getSupabaseClient();
+    const { data: activeBrands } = await supabase
+      .from("brands")
+      .select("id")
+      .eq("active", true);
+    const activeIds = (activeBrands ?? []).map((b) => b.id);
+    if (activeIds.length === 0) return [];
+    const { data, error } = await supabase
+      .from("v_latest_results")
+      .select("*")
+      .neq("locale", "ja")
+      .in("brand_id", activeIds);
+    if (error) throw error;
+    return (data ?? []) as LatestResultRow[];
+  },
+  ["inbound-results-active-v1"],
+  { tags: [CACHE_TAG, "results"], revalidate: CACHE_TTL_SECONDS },
 );
 
 export interface LocaleRow {

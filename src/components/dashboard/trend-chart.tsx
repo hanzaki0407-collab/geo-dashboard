@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -119,7 +119,30 @@ export function TrendChart({ rates }: TrendChartProps) {
       <CardContent className="pt-0">
         <div className="h-56 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+              <defs>
+                {PROVIDERS.map((p) => (
+                  <linearGradient
+                    key={p}
+                    id={`area-${p}`}
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop
+                      offset="0%"
+                      stopColor={PROVIDER_COLORS[p]}
+                      stopOpacity={0.28}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={PROVIDER_COLORS[p]}
+                      stopOpacity={0}
+                    />
+                  </linearGradient>
+                ))}
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
               <XAxis
                 dataKey="weekLabel"
@@ -154,17 +177,18 @@ export function TrendChart({ rates }: TrendChartProps) {
                 formatter={(value) => PROVIDER_LABELS[value as LLMProvider] ?? value}
               />
               {PROVIDERS.map((p) => (
-                <Line
+                <Area
                   key={p}
                   type="monotone"
                   dataKey={p}
                   stroke={PROVIDER_COLORS[p]}
                   strokeWidth={2}
-                  dot={{ r: 2.5, strokeWidth: 0 }}
+                  fill={`url(#area-${p})`}
+                  dot={false}
                   activeDot={{ r: 4 }}
                 />
               ))}
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
         {data.length === 0 && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   computeKpis,
   PROVIDER_LABELS,
@@ -15,9 +15,10 @@ import { KpiCards } from "./kpi-cards";
 import { HeatmapMatrix } from "./heatmap-matrix";
 import { CitationsTable } from "./citations-table";
 import { TrendChart } from "./trend-chart";
-import { WorldHeatmap } from "./world-heatmap";
-import { CompetitorsList } from "./competitors-list";
+import { InboundMatrix } from "./inbound-matrix";
+import { PromptAnswers } from "./prompt-answers";
 import { SnippetsList } from "./snippets-list";
+import { KeywordContentTypes } from "./keyword-content-types";
 
 interface DashboardContentProps {
   results: LatestResultRow[];
@@ -25,6 +26,7 @@ interface DashboardContentProps {
   domains: TopDomainRow[];
   citations: CitationRow[];
   countryMentions: MentionsByCountryRow[];
+  inboundResults: LatestResultRow[];
 }
 
 function aggregateCitations(rows: CitationRow[]): TopDomainRow[] {
@@ -60,17 +62,18 @@ export function DashboardContent({
   domains,
   citations,
   countryMentions,
+  inboundResults,
 }: DashboardContentProps) {
-  const {
-    brands,
-    selectedBrands,
-    selectedKeywords,
-    selectedLocale,
-    cell,
-    setCell,
-    isFiltered,
-    allKeywordsSelected,
-  } = useFilters();
+  const { brands, selectedBrands, selectedKeywords, cell, setCell, activeView } =
+    useFilters();
+
+  // Switching the nav view should start the reader at the top of the section,
+  // not wherever the previous view was scrolled to.
+  useEffect(() => {
+    document
+      .getElementById("dashboard-scroll")
+      ?.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  }, [activeView]);
 
   const activeBrandIds = useMemo(
     () => new Set(brands.map((b) => b.id)),
@@ -99,6 +102,25 @@ export function DashboardContent({
     () => baseRates.filter((r) => selectedBrands.has(r.brand_id)),
     [baseRates, selectedBrands],
   );
+  const filteredInbound = useMemo(
+    () =>
+      inboundResults.filter(
+        (r) =>
+          activeBrandIds.has(r.brand_id) &&
+          selectedBrands.has(r.brand_id) &&
+          selectedKeywords.has(r.keyword),
+      ),
+    [inboundResults, activeBrandIds, selectedBrands, selectedKeywords],
+  );
+  // Citations scoped to selected (and active) brands — feeds the per-keyword
+  // source column in KeywordContentTypes.
+  const filteredCitations = useMemo(
+    () =>
+      citations.filter(
+        (c) => activeBrandIds.has(c.brand_id) && selectedBrands.has(c.brand_id),
+      ),
+    [citations, activeBrandIds, selectedBrands],
+  );
 
   const kpis = useMemo(() => computeKpis(filteredResults), [filteredResults]);
 
@@ -117,61 +139,67 @@ export function DashboardContent({
     : null;
   const activeCell = cell && selectedBrands.has(cell.brandId) ? cell : null;
 
-  const selectedBrandList = brands.filter((b) => selectedBrands.has(b.id));
+  const isOverview = activeView === "top";
+  const showMetrics = isOverview || activeView === "matrix";
 
   return (
-    <div id="top" className="flex scroll-mt-4 flex-col gap-5">
-      {isFiltered && selectedBrandList.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-primary/20 bg-primary/5 px-4 py-2 text-[11px] text-primary">
-          <span className="opacity-70">表示中:</span>
-          <span className="font-semibold">
-            {selectedBrandList.length === 1
-              ? selectedBrandList[0].name
-              : `${selectedBrandList.length} ブランド`}
-          </span>
-          {!allKeywordsSelected && (
-            <span className="text-primary/70">
-              · キーワード: {Array.from(selectedKeywords).slice(0, 6).join(" / ")}
-              {selectedKeywords.size > 6 ? " …" : ""}
-            </span>
-          )}
-        </div>
+    <div className="flex flex-col gap-4">
+      {showMetrics && (
+        <KpiCards kpis={kpis} brandCount={selectedBrands.size} />
       )}
 
-      <KpiCards kpis={kpis} brandCount={selectedBrands.size} />
+      {(isOverview || activeView === "matrix") && (
+        <section className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <HeatmapMatrix
+              results={filteredResults}
+              selection={activeCell}
+              onSelect={setCell}
+            />
+          </div>
+          <div>
+            <CitationsTable
+              domains={shownDomains}
+              filterLabel={filterLabel}
+              onClearFilter={() => setCell(null)}
+              scope={cell ? "cell" : "all"}
+              activeProvider={cell?.provider ?? null}
+            />
+          </div>
+        </section>
+      )}
 
-      <section id="matrix" className="grid scroll-mt-4 gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <HeatmapMatrix
-            results={filteredResults}
-            selection={activeCell}
-            onSelect={setCell}
-          />
-        </div>
-        <div id="citations" className="scroll-mt-4">
-          <CitationsTable
-            domains={shownDomains}
-            filterLabel={filterLabel}
-            onClearFilter={() => setCell(null)}
-            scope={cell ? "cell" : "all"}
-            activeProvider={cell?.provider ?? null}
-          />
-        </div>
-      </section>
+      {activeView === "citations" && (
+        <CitationsTable domains={domains} scope="all" />
+      )}
 
-      <section id="world" className="scroll-mt-4">
-        <WorldHeatmap data={countryMentions} selectedLocale={selectedLocale} />
-      </section>
+      {(isOverview || activeView === "world") && (
+        <InboundMatrix results={filteredInbound} countries={countryMentions} />
+      )}
 
-      <TrendChart rates={filteredRates} />
+      {(isOverview || activeView === "matrix") && (
+        <TrendChart rates={filteredRates} />
+      )}
 
-      <section id="competitors" className="scroll-mt-4">
-        <CompetitorsList results={filteredResults} />
-      </section>
+      {(isOverview || activeView === "content") && (
+        <KeywordContentTypes
+          results={filteredResults}
+          citations={filteredCitations}
+          brands={brands}
+        />
+      )}
 
-      <section id="snippets" className="scroll-mt-4">
+      {(isOverview || activeView === "answers") && (
+        <PromptAnswers
+          results={filteredResults}
+          citations={filteredCitations}
+          brands={brands}
+        />
+      )}
+
+      {(isOverview || activeView === "snippets") && (
         <SnippetsList results={filteredResults} />
-      </section>
+      )}
 
       <footer className="pt-2 pb-4 text-center text-[11px] text-muted-foreground/60">
         GEO Dashboard · Powered by Next.js + Supabase · FTG Company
