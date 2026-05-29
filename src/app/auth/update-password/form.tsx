@@ -3,6 +3,12 @@
 import { useActionState } from "react";
 import { updatePassword, type UpdateState } from "./actions";
 
+const FIELD =
+  "rounded-xl border border-border bg-white/[0.02] px-4 py-3 transition-colors focus-within:border-primary";
+const LABEL = "block text-[11px] font-medium text-muted-foreground";
+const INPUT =
+  "mt-0.5 w-full bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground/50";
+
 export function UpdatePasswordForm() {
   const [state, action, pending] = useActionState<
     UpdateState | undefined,
@@ -11,11 +17,8 @@ export function UpdatePasswordForm() {
 
   return (
     <form action={action} className="space-y-4">
-      <div className="rounded-xl border border-neutral-300 px-4 py-3 transition-colors focus-within:border-blue-500">
-        <label
-          htmlFor="password"
-          className="block text-[11px] font-medium text-neutral-500"
-        >
+      <div className={FIELD}>
+        <label htmlFor="password" className={LABEL}>
           新しいパスワード
         </label>
         <input
@@ -26,15 +29,12 @@ export function UpdatePasswordForm() {
           required
           minLength={8}
           placeholder="8文字以上"
-          className="mt-0.5 w-full bg-transparent text-[15px] text-neutral-900 outline-none placeholder:text-neutral-400"
+          className={INPUT}
         />
       </div>
 
-      <div className="rounded-xl border border-neutral-300 px-4 py-3 transition-colors focus-within:border-blue-500">
-        <label
-          htmlFor="confirm"
-          className="block text-[11px] font-medium text-neutral-500"
-        >
+      <div className={FIELD}>
+        <label htmlFor="confirm" className={LABEL}>
           パスワード（確認）
         </label>
         <input
@@ -45,12 +45,12 @@ export function UpdatePasswordForm() {
           required
           minLength={8}
           placeholder="再度入力"
-          className="mt-0.5 w-full bg-transparent text-[15px] text-neutral-900 outline-none placeholder:text-neutral-400"
+          className={INPUT}
         />
       </div>
 
       {state?.error && (
-        <p className="text-[12px] leading-relaxed text-red-600">
+        <p className="text-[12px] leading-relaxed text-destructive">
           {state.error}
         </p>
       )}
@@ -58,7 +58,7 @@ export function UpdatePasswordForm() {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-xl border-2 border-blue-500 bg-blue-500 px-4 py-3 text-[15px] font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-xl bg-primary px-4 py-3 text-[15px] font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? "更新中…" : "パスワードを設定"}
       </button>
