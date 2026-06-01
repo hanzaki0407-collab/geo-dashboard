@@ -8,6 +8,16 @@ import {
   type ResetState,
 } from "./actions";
 
+const FIELD =
+  "rounded-xl border border-border bg-white/[0.02] px-4 py-3 transition-colors focus-within:border-primary";
+const LABEL = "block text-[11px] font-medium text-muted-foreground";
+const INPUT =
+  "mt-0.5 w-full bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground/50";
+const SUBMIT =
+  "w-full rounded-xl bg-primary px-4 py-3 text-[15px] font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60";
+const LINK =
+  "block w-full pt-1 text-center text-[12px] text-muted-foreground transition-colors hover:text-foreground";
+
 export function LoginForm() {
   const [mode, setMode] = useState<"signin" | "reset">("signin");
 
@@ -24,24 +34,24 @@ export function LoginForm() {
   if (mode === "reset" && resetState?.ok) {
     return (
       <div className="space-y-4 text-center">
-        <div className="text-[15px] font-semibold text-neutral-900">
+        <div className="text-[15px] font-semibold text-foreground">
           メールを送信しました
         </div>
-        <p className="text-[13px] leading-relaxed text-neutral-600">
-          <span className="font-medium text-neutral-800">
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
+          <span className="font-medium text-foreground">
             {resetState.email}
           </span>{" "}
           宛にパスワード設定リンクをお送りしました。
           <br />
           リンクをクリックして新しいパスワードを設定してください。
         </p>
-        <p className="pt-2 text-[12px] text-neutral-500">
+        <p className="pt-2 text-[12px] text-muted-foreground/70">
           メールが届かない場合、迷惑メールフォルダもご確認ください。
         </p>
         <button
           type="button"
           onClick={() => setMode("signin")}
-          className="text-[13px] font-medium text-blue-600 hover:underline"
+          className="text-[13px] font-medium text-primary hover:underline"
         >
           サインイン画面に戻る
         </button>
@@ -52,15 +62,12 @@ export function LoginForm() {
   if (mode === "reset") {
     return (
       <form action={resetAction} className="space-y-4">
-        <p className="text-[12px] leading-relaxed text-neutral-600">
+        <p className="text-[12px] leading-relaxed text-muted-foreground">
           初回の方・パスワードをお忘れの方は、登録メール宛にパスワード設定リンクをお送りします。
         </p>
 
-        <div className="rounded-xl border border-neutral-300 px-4 py-3 transition-colors focus-within:border-blue-500">
-          <label
-            htmlFor="email-reset"
-            className="block text-[11px] font-medium text-neutral-500"
-          >
+        <div className={FIELD}>
+          <label htmlFor="email-reset" className={LABEL}>
             メールアドレス
           </label>
           <input
@@ -72,28 +79,24 @@ export function LoginForm() {
             required
             defaultValue={resetState?.email}
             placeholder="you@example.com"
-            className="mt-0.5 w-full bg-transparent text-[15px] text-neutral-900 outline-none placeholder:text-neutral-400"
+            className={INPUT}
           />
         </div>
 
         {resetState?.error && (
-          <p className="text-[12px] leading-relaxed text-red-600">
+          <p className="text-[12px] leading-relaxed text-destructive">
             {resetState.error}
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={resetPending}
-          className="w-full rounded-xl border-2 border-blue-500 bg-blue-500 px-4 py-3 text-[15px] font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
-        >
+        <button type="submit" disabled={resetPending} className={SUBMIT}>
           {resetPending ? "送信中…" : "設定リンクを送信"}
         </button>
 
         <button
           type="button"
           onClick={() => setMode("signin")}
-          className="block w-full pt-1 text-center text-[12px] text-neutral-600 hover:underline"
+          className={LINK}
         >
           サインイン画面に戻る
         </button>
@@ -103,11 +106,8 @@ export function LoginForm() {
 
   return (
     <form action={signinAction} className="space-y-4">
-      <div className="rounded-xl border border-neutral-300 px-4 py-3 transition-colors focus-within:border-blue-500">
-        <label
-          htmlFor="email"
-          className="block text-[11px] font-medium text-neutral-500"
-        >
+      <div className={FIELD}>
+        <label htmlFor="email" className={LABEL}>
           メールアドレス
         </label>
         <input
@@ -119,15 +119,12 @@ export function LoginForm() {
           required
           defaultValue={signinState?.email}
           placeholder="you@example.com"
-          className="mt-0.5 w-full bg-transparent text-[15px] text-neutral-900 outline-none placeholder:text-neutral-400"
+          className={INPUT}
         />
       </div>
 
-      <div className="rounded-xl border border-neutral-300 px-4 py-3 transition-colors focus-within:border-blue-500">
-        <label
-          htmlFor="password"
-          className="block text-[11px] font-medium text-neutral-500"
-        >
+      <div className={FIELD}>
+        <label htmlFor="password" className={LABEL}>
           パスワード
         </label>
         <input
@@ -138,29 +135,21 @@ export function LoginForm() {
           required
           minLength={8}
           placeholder="8文字以上"
-          className="mt-0.5 w-full bg-transparent text-[15px] text-neutral-900 outline-none placeholder:text-neutral-400"
+          className={INPUT}
         />
       </div>
 
       {signinState?.error && (
-        <p className="text-[12px] leading-relaxed text-red-600">
+        <p className="text-[12px] leading-relaxed text-destructive">
           {signinState.error}
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={signinPending}
-        className="w-full rounded-xl border-2 border-blue-500 bg-blue-500 px-4 py-3 text-[15px] font-semibold text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <button type="submit" disabled={signinPending} className={SUBMIT}>
         {signinPending ? "サインイン中…" : "サインイン"}
       </button>
 
-      <button
-        type="button"
-        onClick={() => setMode("reset")}
-        className="block w-full pt-1 text-center text-[12px] text-neutral-600 hover:underline"
-      >
+      <button type="button" onClick={() => setMode("reset")} className={LINK}>
         初回設定 / パスワードをお忘れの方
       </button>
     </form>

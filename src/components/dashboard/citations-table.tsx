@@ -1,9 +1,12 @@
+"use client";
+
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import type { TopDomainRow } from "@/lib/data";
 import { PROVIDER_LABELS, PROVIDER_COLORS } from "@/lib/data";
 import type { LLMProvider } from "@/lib/types";
-import { ExternalLink, Globe, Filter, Sparkles } from "lucide-react";
+import { ChevronDown, ExternalLink, Filter } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface CitationsTableProps {
   domains: TopDomainRow[];
@@ -61,15 +64,18 @@ const DOMAIN_AUTHORITY: Record<string, Authority> = {
 };
 
 const TOP_RECOMMENDED_LIMIT = 3;
+const COLLAPSED_COUNT = 4;
 
 function labelFor(domain: string): string {
   return DOMAIN_LABEL_JA[domain] ?? domain;
 }
 
-// Pick the system's best backlink targets from what's visible:
+// Pick the system's best backlink targets from what's visible, ordered best-first.
 // score = domain authority × log(citations+1). Returns up to 3 recommended.
-function pickRecommended(domains: TopDomainRow[]): Map<string, Authority> {
-  const ranked = domains
+function pickRecommended(
+  domains: TopDomainRow[],
+): { domain: string; auth: Authority }[] {
+  return domains
     .map((d) => {
       const auth = DOMAIN_AUTHORITY[d.domain];
       if (!auth) return null;
@@ -81,8 +87,21 @@ function pickRecommended(domains: TopDomainRow[]): Map<string, Authority> {
     })
     .filter((x): x is { domain: string; auth: Authority; rank: number } => x !== null)
     .sort((a, b) => b.rank - a.rank)
-    .slice(0, TOP_RECOMMENDED_LIMIT);
-  return new Map(ranked.map((r) => [r.domain, r.auth]));
+    .slice(0, TOP_RECOMMENDED_LIMIT)
+    .map(({ domain, auth }) => ({ domain, auth }));
+}
+
+// Animated "狙い目" reticle — radar ping ring + fixed target. Recommended only.
+function TargetReticle() {
+  return (
+    <span className="relative inline-flex h-7 w-7 items-center justify-center">
+      <svg viewBox="0 0 24 24" className="h-[22px] w-[22px] text-[#2bd39a]" fill="none">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.4" opacity="0.5" className="target-ping" />
+        <circle cx="12" cy="12" r="5.4" stroke="currentColor" strokeWidth="1.6" />
+        <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+      </svg>
+    </span>
+  );
 }
 
 export function CitationsTable({
@@ -92,11 +111,27 @@ export function CitationsTable({
   scope = "all",
   activeProvider = null,
 }: CitationsTableProps) {
+  const [bodyOpen, setBodyOpen] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+
   const max = Math.max(1, ...domains.map((d) => d.citation_count));
   const title = scope === "cell" ? "引用元ドメイン（選択セル）" : "引用元ドメイン Top 10";
   const rangeLabel = scope === "cell" ? "タップしたセルの引用元" : "直近4週";
   const accent = activeProvider ? PROVIDER_COLORS[activeProvider] : null;
-  const recommendedMap = pickRecommended(domains);
+
+  const recommended = pickRecommended(domains);
+  const recommendedMap = new Map(recommended.map((r) => [r.domain, r.auth]));
+  // Recommended domains float to the top (best-first); the rest keep their
+  // citation-count order.
+  const ordered = [
+    ...recommended.map((r) => domains.find((d) => d.domain === r.domain)!),
+    ...domains.filter((d) => !recommendedMap.has(d.domain)),
+  ].filter(Boolean) as TopDomainRow[];
+
+  // Keep the panel inside the viewport: show recommended + a few by default.
+  const visibleCount = Math.max(COLLAPSED_COUNT, recommended.length);
+  const visible = expanded ? ordered : ordered.slice(0, visibleCount);
+  const hiddenCount = ordered.length - visible.length;
 
   return (
     <Card
@@ -106,9 +141,13 @@ export function CitationsTable({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
+            <div className="cc-eyebrow mb-1">Citations</div>
             <CardTitle className="text-sm font-semibold text-foreground">{title}</CardTitle>
+            <p className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground/70">
+              各AIが回答時に参照したドメイン（掲載されると引用されやすい＝GEOの狙い目）
+            </p>
             {filterLabel && (
-              <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-400">
+              <div className="mt-1 flex items-center gap-1 text-[10px] text-primary">
                 <Filter className="h-2.5 w-2.5" />
                 <span className="truncate">{filterLabel}</span>
               </div>
@@ -125,99 +164,141 @@ export function CitationsTable({
                 解除
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setBodyOpen((v) => !v)}
+              aria-label={bodyOpen ? "折りたたむ" : "開く"}
+              aria-expanded={bodyOpen}
+              className="flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ChevronDown
+                className={cn(
+                  "h-3.5 w-3.5 transition-transform",
+                  bodyOpen ? "" : "-rotate-90",
+                )}
+              />
+            </button>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
-        {domains.length === 0 ? (
-          <p className="py-6 text-center text-xs text-muted-foreground">
-            {scope === "cell"
-              ? "このセルの引用元データがありません"
-              : "引用元データがまだありません"}
-          </p>
-        ) : (
-          <ol className="space-y-2.5">
-            {domains.map((d, i) => {
-              const widthPct = (d.citation_count / max) * 100;
-              const jaLabel = labelFor(d.domain);
-              const recommendation = recommendedMap.get(d.domain);
-              const recommended = !!recommendation;
-              return (
-                <li key={d.domain}>
-                  <a
-                    href={`https://${d.domain}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`group flex items-center gap-2.5 rounded-md p-1 -m-1 transition-colors hover:bg-white/[0.03] ${
-                      recommended ? "recommended-backlink" : ""
-                    }`}
-                    title={
-                      recommended
-                        ? `${jaLabel} (${d.domain}) — 安全な高権威の被リンク候補`
-                        : `${jaLabel} (${d.domain})`
-                    }
-                  >
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-500/12 text-[10px] font-bold text-amber-400">
-                      {i + 1}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <div className="flex min-w-0 items-center gap-1">
-                          <Globe className="h-3 w-3 shrink-0 text-muted-foreground/50" />
-                          <span className="truncate text-xs font-semibold text-foreground group-hover:text-primary">
-                            {jaLabel}
-                          </span>
+
+      {bodyOpen && (
+        <CardContent className="pt-0">
+          {domains.length === 0 ? (
+            <p className="py-6 text-center text-xs text-muted-foreground">
+              {scope === "cell"
+                ? "このセルの引用元データがありません"
+                : "引用元データがまだありません"}
+            </p>
+          ) : (
+            <>
+              <ol className="space-y-2.5">
+                {visible.map((d, i) => {
+                  const widthPct = (d.citation_count / max) * 100;
+                  const jaLabel = labelFor(d.domain);
+                  const recommendation = recommendedMap.get(d.domain);
+                  const recommended = !!recommendation;
+                  return (
+                    <li key={d.domain}>
+                      <div
+                        className={cn(
+                          "rounded-xl p-2.5 transition-colors hover:bg-white/[0.03]",
+                          recommended &&
+                            "border border-[#2bd39a]/25 bg-[#2bd39a]/[0.04]",
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {recommended ? (
+                            <TargetReticle />
+                          ) : (
+                            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/12 text-[10px] font-bold text-primary">
+                              {i + 1}
+                            </div>
+                          )}
+                          <a
+                            href={`https://${d.domain}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group flex min-w-0 flex-1 items-center gap-1"
+                            title={`${jaLabel}（${d.domain}）`}
+                          >
+                            <span className="truncate text-[13px] font-semibold text-foreground group-hover:text-primary">
+                              {jaLabel}
+                            </span>
+                            <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-primary" />
+                          </a>
                           {recommended && (
                             <span
-                              className="recommended-pulse inline-flex shrink-0 items-center gap-0.5 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-1 py-px text-[9px] font-semibold text-emerald-300"
-                              title="安全かつ効果的な被リンク候補"
+                              className="shrink-0 rounded-full border border-[#2bd39a]/35 bg-[#2bd39a]/10 px-1.5 py-px text-[9px] font-semibold text-[#2bd39a]"
+                              title={recommendation?.reason}
                             >
-                              <Sparkles className="h-2 w-2" />
-                              推奨
+                              狙い目
                             </span>
                           )}
-                          <ExternalLink className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-primary" />
+                          <span className="shrink-0 text-[13px] font-bold tabular-nums text-foreground">
+                            {d.citation_count}
+                            <span className="ml-px text-[9px] font-normal text-muted-foreground">
+                              件
+                            </span>
+                          </span>
                         </div>
-                        <span className="shrink-0 text-[11px] font-semibold text-foreground/70">
-                          {d.citation_count}件
-                        </span>
-                      </div>
-                      {jaLabel !== d.domain && (
-                        <div className="truncate text-[10px] text-muted-foreground/60">
-                          {d.domain}
+                        {jaLabel !== d.domain && (
+                          <div className="mt-0.5 ml-[34px] truncate text-[10px] text-muted-foreground/55">
+                            {d.domain}
+                          </div>
+                        )}
+                        <div className="mt-1.5 ml-[34px] flex flex-wrap items-center gap-1">
+                          <span className="text-[9.5px] text-muted-foreground/55">参照AI</span>
+                          {d.providers.map((p) => {
+                            const color = PROVIDER_COLORS[p as LLMProvider];
+                            return (
+                              <span
+                                key={p}
+                                className="inline-flex items-center rounded-full px-1.5 py-px text-[9.5px] font-medium"
+                                style={{
+                                  backgroundColor: color
+                                    ? `color-mix(in srgb, ${color} 18%, transparent)`
+                                    : "rgba(255,255,255,0.06)",
+                                  color: color ?? "var(--muted-foreground)",
+                                }}
+                              >
+                                {PROVIDER_LABELS[p as LLMProvider] ?? p}
+                              </span>
+                            );
+                          })}
                         </div>
-                      )}
-                      {recommendation && (
-                        <p className="mt-1 rounded-md border border-emerald-400/25 bg-emerald-400/5 px-2 py-1 text-[10px] leading-snug text-emerald-200/90">
-                          <span className="font-semibold text-emerald-300">推奨理由：</span>
-                          {recommendation.reason}
-                        </p>
-                      )}
-                      <div className="mt-1 h-[3px] w-full overflow-hidden rounded-full bg-white/[0.04]">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all"
-                          style={{ width: `${widthPct}%` }}
-                        />
+                        <div className="mt-1.5 ml-[34px] h-[3px] overflow-hidden rounded-full bg-white/[0.05]">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${widthPct}%`,
+                              background: recommended ? "#2bd39a" : "var(--primary)",
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div className="mt-1 flex flex-wrap gap-0.5">
-                        {d.providers.map((p) => (
-                          <Badge
-                            key={p}
-                            variant="secondary"
-                            className="border-0 bg-white/[0.04] px-1 py-0 text-[9px] text-muted-foreground"
-                          >
-                            {PROVIDER_LABELS[p as LLMProvider] ?? p}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </a>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-      </CardContent>
+                    </li>
+                  );
+                })}
+              </ol>
+
+              {(hiddenCount > 0 || expanded) && ordered.length > visibleCount && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded((v) => !v)}
+                  className="mt-2.5 flex w-full items-center justify-center gap-1 rounded-lg border border-border bg-white/[0.02] py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {expanded ? (
+                    "折りたたむ"
+                  ) : (
+                    <>もっと見る（+{hiddenCount}）</>
+                  )}
+                </button>
+              )}
+            </>
+          )}
+        </CardContent>
+      )}
     </Card>
   );
 }

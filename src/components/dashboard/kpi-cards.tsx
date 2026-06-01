@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, Target, Sparkles, Award } from "lucide-react";
+import { RadialGauge } from "@/components/ui/radial-gauge";
 
 interface KpiCardsProps {
   kpis: {
@@ -14,85 +14,96 @@ interface KpiCardsProps {
 }
 
 export function KpiCards({ kpis, brandCount }: KpiCardsProps) {
-  const items = [
-    {
-      label: "総言及率",
-      value: `${kpis.mentionRate}%`,
-      sub: `${kpis.mentioned} / ${kpis.total} クエリで言及`,
-      change: kpis.mentionRate > 50 ? "+2.44%" : null,
-      changeSub: "vs 先週",
-      icon: Target,
-      color: "#4f6ef7",
-    },
-    {
-      label: "LLMカバレッジ",
-      value: `${kpis.providerCoverage}/4`,
-      sub: "言及のあったLLMの数",
-      change: null,
-      changeSub: null,
-      icon: Sparkles,
-      color: "#a855f7",
-    },
-    {
-      label: "ポジティブ言及",
-      value: `${kpis.positive}`,
-      sub: `ネガティブ ${kpis.negative} 件`,
-      change: kpis.positive > 0 ? `+${kpis.positive}` : null,
-      changeSub: "今週",
-      icon: TrendingUp,
-      color: "#10b981",
-    },
-    {
-      label: "追跡ブランド数",
-      value: `${brandCount}`,
-      sub: "週次で言及状況を観測",
-      change: null,
-      changeSub: null,
-      icon: Award,
-      color: "#f59e0b",
-    },
-  ];
+  const positiveShare =
+    kpis.mentioned > 0 ? (kpis.positive / kpis.mentioned) * 100 : 0;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {items.map((item) => {
-        const Icon = item.icon;
-        return (
-          <Card
-            key={item.label}
-            className="border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-border/80"
+      {/* 総言及率 — circle gauge (primary) */}
+      <Card className="rise-in">
+        <CardContent className="flex items-center gap-4 px-4">
+          <RadialGauge value={kpis.mentionRate} max={100} color="var(--primary)">
+            <span className="text-glow-primary font-mono text-[15px] font-bold tabular-nums text-primary">
+              {kpis.mentionRate}
+              <span className="text-[9px]">%</span>
+            </span>
+          </RadialGauge>
+          <div className="min-w-0">
+            <div className="cc-eyebrow">Mention</div>
+            <div className="mt-1 text-[13px] font-medium text-foreground">
+              総言及率
+            </div>
+            <div className="mt-0.5 font-mono text-[10px] text-muted-foreground/60">
+              {kpis.mentioned}/{kpis.total} queries
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* LLMカバレッジ — circle gauge (signal) */}
+      <Card className="rise-in">
+        <CardContent className="flex items-center gap-4 px-4">
+          <RadialGauge
+            value={kpis.providerCoverage}
+            max={4}
+            color="var(--signal)"
           >
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="text-[11px] font-medium text-muted-foreground">
-                    {item.label}
-                  </div>
-                  <div className="mt-1.5 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold tracking-tight text-foreground">
-                      {item.value}
-                    </span>
-                    {item.change && (
-                      <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
-                        {item.change} ↗
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    {item.sub}
-                  </div>
-                </div>
-                <div
-                  className="flex h-9 w-9 items-center justify-center rounded-lg"
-                  style={{ backgroundColor: `${item.color}18` }}
-                >
-                  <Icon className="h-[18px] w-[18px]" style={{ color: item.color }} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+            <span className="text-glow-signal font-mono text-[15px] font-bold tabular-nums">
+              {kpis.providerCoverage}
+              <span className="text-[10px] text-muted-foreground">/4</span>
+            </span>
+          </RadialGauge>
+          <div className="min-w-0">
+            <div className="cc-eyebrow">Coverage</div>
+            <div className="mt-1 text-[13px] font-medium text-foreground">
+              LLMカバレッジ
+            </div>
+            <div className="mt-0.5 font-mono text-[10px] text-muted-foreground/60">
+              providers hit
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ポジティブ言及 — circle gauge of positive share (signal) */}
+      <Card className="rise-in">
+        <CardContent className="flex items-center gap-4 px-4">
+          <RadialGauge value={positiveShare} max={100} color="var(--signal)">
+            <span className="text-glow-signal font-mono text-[17px] font-bold tabular-nums">
+              {kpis.positive}
+            </span>
+          </RadialGauge>
+          <div className="min-w-0">
+            <div className="cc-eyebrow">Positive</div>
+            <div className="mt-1 text-[13px] font-medium text-foreground">
+              ポジティブ言及
+            </div>
+            <div className="mt-0.5 font-mono text-[10px] text-muted-foreground/60">
+              {kpis.negative > 0 ? `negative ${kpis.negative}` : "no negatives"}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 追跡ブランド — stat in a circular chip (motif echo, no gauge) */}
+      <Card className="rise-in">
+        <CardContent className="flex items-center gap-4 px-4">
+          <div className="flex size-[76px] shrink-0 items-center justify-center rounded-full border border-border bg-white/[0.02]">
+            <span className="font-mono text-2xl font-bold tabular-nums text-foreground">
+              {brandCount}
+            </span>
+          </div>
+          <div className="min-w-0">
+            <div className="cc-eyebrow">Targets</div>
+            <div className="mt-1 text-[13px] font-medium text-foreground">
+              追跡ブランド
+            </div>
+            <div className="mt-0.5 font-mono text-[10px] text-muted-foreground/60">
+              tracked weekly
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

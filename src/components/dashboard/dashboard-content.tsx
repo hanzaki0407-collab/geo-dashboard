@@ -1,36 +1,32 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo } from "react";
 import {
   computeKpis,
-  type BrandRow,
+  PROVIDER_LABELS,
   type CitationRow,
   type LatestResultRow,
   type MentionRateRow,
   type MentionsByCountryRow,
   type TopDomainRow,
 } from "@/lib/data";
-import { PROVIDER_LABELS } from "@/lib/data";
-import { KpiCards } from "@/components/dashboard/kpi-cards";
-import {
-  HeatmapMatrix,
-  HeatmapLegend,
-  type HeatmapSelection,
-} from "@/components/dashboard/heatmap-matrix";
-import { TrendChart } from "@/components/dashboard/trend-chart";
-import { CitationsTable } from "@/components/dashboard/citations-table";
-import { SnippetsList } from "@/components/dashboard/snippets-list";
-import { CompetitorsList } from "@/components/dashboard/competitors-list";
-import { WorldHeatmap } from "@/components/dashboard/world-heatmap";
+import { useFilters } from "./filter-context";
+import { KpiCards } from "./kpi-cards";
+import { HeatmapMatrix } from "./heatmap-matrix";
+import { CitationsTable } from "./citations-table";
+import { TrendChart } from "./trend-chart";
+import { InboundMatrix } from "./inbound-matrix";
+import { PromptAnswers } from "./prompt-answers";
+import { SnippetsList } from "./snippets-list";
+import { KeywordContentTypes } from "./keyword-content-types";
 
 interface DashboardContentProps {
-  brands: BrandRow[];
   results: LatestResultRow[];
   rates: MentionRateRow[];
   domains: TopDomainRow[];
   citations: CitationRow[];
   countryMentions: MentionsByCountryRow[];
+  inboundResults: LatestResultRow[];
 }
 
 function aggregateCitations(rows: CitationRow[]): TopDomainRow[] {
@@ -61,44 +57,30 @@ function aggregateCitations(rows: CitationRow[]): TopDomainRow[] {
 }
 
 export function DashboardContent({
-  brands,
   results,
   rates,
   domains,
   citations,
   countryMentions,
+  inboundResults,
 }: DashboardContentProps) {
-  // Only show brands the user actually tracks today. Keeps legacy/seed rows
-  // (e.g. Brand X/Y/Z from Sample Company) out of the UI entirely.
-  const activeBrands = useMemo(
-    () => brands.filter((b) => b.active !== false),
+  const { brands, selectedBrands, selectedKeywords, cell, setCell, activeView } =
+    useFilters();
+
+  // Switching the nav view should start the reader at the top of the section,
+  // not wherever the previous view was scrolled to.
+  useEffect(() => {
+    document
+      .getElementById("dashboard-scroll")
+      ?.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  }, [activeView]);
+
+  const activeBrandIds = useMemo(
+    () => new Set(brands.map((b) => b.id)),
     [brands],
   );
-  const activeBrandIds = useMemo(
-    () => new Set(activeBrands.map((b) => b.id)),
-    [activeBrands],
-  );
 
-  // Sidebar writes the brand/keyword selection into URL search params so the
-  // tree (in the layout) and the dashboard (this page) can share state without
-  // a Context refactor. Empty params = "all".
-  const params = useSearchParams();
-  const selectedBrandSet = useMemo(() => {
-    const raw = params.get("brand");
-    return raw
-      ? new Set(raw.split(",").filter(Boolean))
-      : new Set(activeBrands.map((b) => b.id));
-  }, [params, activeBrands]);
-  const selectedKeywordSet = useMemo(() => {
-    const raw = params.get("kw");
-    return raw
-      ? new Set(raw.split(",").filter(Boolean))
-      : new Set(activeBrands.flatMap((b) => b.keywords));
-  }, [params, activeBrands]);
-
-  const [cellSelection, setCellSelection] = useState<HeatmapSelection | null>(null);
-
-  // Active-brand-only base (drops stale brand rows regardless of selection).
+  // Drop any stale/non-active brand rows regardless of selection.
   const baseResults = useMemo(
     () => results.filter((r) => activeBrandIds.has(r.brand_id)),
     [results, activeBrandIds],
@@ -112,96 +94,112 @@ export function DashboardContent({
     () =>
       baseResults.filter(
         (r) =>
-          selectedBrandSet.has(r.brand_id) && selectedKeywordSet.has(r.keyword),
+          selectedBrands.has(r.brand_id) && selectedKeywords.has(r.keyword),
       ),
-    [baseResults, selectedBrandSet, selectedKeywordSet],
+    [baseResults, selectedBrands, selectedKeywords],
   );
   const filteredRates = useMemo(
-    () => baseRates.filter((r) => selectedBrandSet.has(r.brand_id)),
-    [baseRates, selectedBrandSet],
+    () => baseRates.filter((r) => selectedBrands.has(r.brand_id)),
+    [baseRates, selectedBrands],
   );
-  const kpis = useMemo(() => computeKpis(filteredResults), [filteredResults]);
-  const brandCount = selectedBrandSet.size;
+  const filteredInbound = useMemo(
+    () =>
+      inboundResults.filter(
+        (r) =>
+          activeBrandIds.has(r.brand_id) &&
+          selectedBrands.has(r.brand_id) &&
+          selectedKeywords.has(r.keyword),
+      ),
+    [inboundResults, activeBrandIds, selectedBrands, selectedKeywords],
+  );
+  // Citations scoped to selected (and active) brands — feeds the per-keyword
+  // source column in KeywordContentTypes.
+  const filteredCitations = useMemo(
+    () =>
+      citations.filter(
+        (c) => activeBrandIds.has(c.brand_id) && selectedBrands.has(c.brand_id),
+      ),
+    [citations, activeBrandIds, selectedBrands],
+  );
 
+  const kpis = useMemo(() => computeKpis(filteredResults), [filteredResults]);
+
+  // Matrix cell drill-down → scope the citations table to that brand×provider.
   const cellDomains = useMemo(() => {
-    if (!cellSelection) return null;
+    if (!cell) return null;
     const rows = citations.filter(
-      (c) =>
-        c.brand_id === cellSelection.brandId && c.llm_provider === cellSelection.provider,
+      (c) => c.brand_id === cell.brandId && c.llm_provider === cell.provider,
     );
     return aggregateCitations(rows);
-  }, [cellSelection, citations]);
+  }, [cell, citations]);
 
   const shownDomains = cellDomains ?? domains;
-  const filterLabel = cellSelection
-    ? `${cellSelection.brandName} × ${PROVIDER_LABELS[cellSelection.provider]}`
+  const filterLabel = cell
+    ? `${cell.brandName} × ${PROVIDER_LABELS[cell.provider]}`
     : null;
+  const activeCell = cell && selectedBrands.has(cell.brandId) ? cell : null;
 
-  const activeCellSelection =
-    cellSelection && selectedBrandSet.has(cellSelection.brandId)
-      ? cellSelection
-      : null;
-
-  const allBrandsSelected = selectedBrandSet.size === activeBrands.length;
-  const allKeywordsSelected =
-    selectedKeywordSet.size === activeBrands.flatMap((b) => b.keywords).length;
-  const selectedBrandList = activeBrands.filter((b) => selectedBrandSet.has(b.id));
-  const showFilterBanner = !(allBrandsSelected && allKeywordsSelected);
+  const isOverview = activeView === "top";
+  const showMetrics = isOverview || activeView === "matrix";
 
   return (
-    <div id="top" className="flex flex-col gap-5">
-      {showFilterBanner && selectedBrandList.length > 0 && (
-        <div id="brand-filter" className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-2 text-[11px] text-primary">
-          表示中:{" "}
-          <span className="font-semibold">
-            {selectedBrandList.length === 1
-              ? selectedBrandList[0].name
-              : `${selectedBrandList.length} ブランド`}
-          </span>
-          {!allKeywordsSelected && (
-            <span className="ml-2 text-primary/70">
-              キーワード:{" "}
-              {Array.from(selectedKeywordSet).slice(0, 6).join(" / ")}
-              {selectedKeywordSet.size > 6 ? " …" : ""}
-            </span>
-          )}
-        </div>
+    <div className="flex flex-col gap-4">
+      {showMetrics && (
+        <KpiCards kpis={kpis} brandCount={selectedBrands.size} />
       )}
 
-      <KpiCards kpis={kpis} brandCount={brandCount} />
+      {(isOverview || activeView === "matrix") && (
+        <section className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <HeatmapMatrix
+              results={filteredResults}
+              selection={activeCell}
+              onSelect={setCell}
+            />
+          </div>
+          <div>
+            <CitationsTable
+              domains={shownDomains}
+              filterLabel={filterLabel}
+              onClearFilter={() => setCell(null)}
+              scope={cell ? "cell" : "all"}
+              activeProvider={cell?.provider ?? null}
+            />
+          </div>
+        </section>
+      )}
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <HeatmapMatrix
-            results={filteredResults}
-            selection={activeCellSelection}
-            onSelect={setCellSelection}
-          />
-        </div>
-        <div id="citations">
-          <CitationsTable
-            domains={shownDomains}
-            filterLabel={filterLabel}
-            onClearFilter={() => setCellSelection(null)}
-            scope={cellSelection ? "cell" : "all"}
-            activeProvider={cellSelection?.provider ?? null}
-          />
-        </div>
-      </div>
+      {activeView === "citations" && (
+        <CitationsTable domains={domains} scope="all" />
+      )}
 
-      <HeatmapLegend />
+      {(isOverview || activeView === "world") && (
+        <InboundMatrix results={filteredInbound} countries={countryMentions} />
+      )}
 
-      <WorldHeatmap data={countryMentions} />
+      {(isOverview || activeView === "matrix") && (
+        <TrendChart rates={filteredRates} />
+      )}
 
-      <TrendChart rates={filteredRates} />
+      {(isOverview || activeView === "content") && (
+        <KeywordContentTypes
+          results={filteredResults}
+          citations={filteredCitations}
+          brands={brands}
+        />
+      )}
 
-      <div id="competitors">
-        <CompetitorsList results={filteredResults} />
-      </div>
+      {(isOverview || activeView === "answers") && (
+        <PromptAnswers
+          results={filteredResults}
+          citations={filteredCitations}
+          brands={brands}
+        />
+      )}
 
-      <div id="snippets">
+      {(isOverview || activeView === "snippets") && (
         <SnippetsList results={filteredResults} />
-      </div>
+      )}
 
       <footer className="pt-2 pb-4 text-center text-[11px] text-muted-foreground/60">
         GEO Dashboard · Powered by Next.js + Supabase · FTG Company

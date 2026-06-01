@@ -20,10 +20,10 @@ export function SnippetsList({ results }: SnippetsListProps) {
   return (
     <Card className="border border-border bg-card">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold text-foreground">LLM紹介文サンプル</CardTitle>
-          <span className="cursor-pointer text-xs text-primary hover:underline">See all</span>
-        </div>
+        <div className="cc-eyebrow mb-1">Snippets // LLM descriptions</div>
+        <CardTitle className="text-sm font-semibold text-foreground">
+          LLM紹介文
+        </CardTitle>
         <p className="text-[11px] text-muted-foreground">
           各LLMがブランドをどう紹介しているか
         </p>

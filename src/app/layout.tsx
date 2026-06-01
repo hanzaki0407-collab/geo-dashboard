@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
-import { Noto_Sans_JP } from "next/font/google";
+import { JetBrains_Mono, Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 
 const notoSansJp = Noto_Sans_JP({
   variable: "--font-noto-jp",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
@@ -20,7 +26,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja" className={`${notoSansJp.variable} h-full antialiased`}>
+    <html
+      lang="ja"
+      className={`${notoSansJp.variable} ${jetbrainsMono.variable} h-full antialiased`}
+    >
       <body className="h-full bg-background font-sans text-foreground">
         {children}
       </body>

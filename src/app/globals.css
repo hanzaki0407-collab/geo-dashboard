@@ -7,8 +7,11 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Noto Sans JP for Japanese body; JetBrains Mono for numerals/codes/labels. */
+  --font-sans: var(--font-noto-jp), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SFMono-Regular", Menlo,
+    Consolas, monospace;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -27,6 +30,9 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-signal: var(--signal);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -39,6 +45,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-card-elevated: var(--card-elevated);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -46,41 +53,56 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -18px rgba(0, 0, 0, 0.7);
+  --shadow-pop: 0 16px 48px -12px rgba(0, 0, 0, 0.7);
 }
 
+/*
+  COMMAND CENTER theme — near-black "observatory" surface, monospace data,
+  signal-green status glow (ties to the HANCHAN mark), one blue data accent.
+  Restraint over color; the glow + grid do the visual work, not hues.
+*/
 :root {
-  --background: #111118;
-  --foreground: #e8e8ef;
-  --card: #1a1a24;
-  --card-foreground: #e8e8ef;
-  --popover: #1a1a24;
-  --popover-foreground: #e8e8ef;
-  --primary: #4f6ef7;
-  --primary-foreground: #ffffff;
-  --secondary: #21212e;
-  --secondary-foreground: #d0d0dc;
-  --muted: #21212e;
-  --muted-foreground: #6b6b80;
-  --accent: #262636;
-  --accent-foreground: #d8d8e4;
-  --destructive: #ef4444;
+  /* Pure-black background; neutral dark surfaces (no color cast). */
+  --background: #000000;
+  --foreground: #e4e4e7;
+  --card: #0f0f11;
+  --card-elevated: #17171a;
+  --card-foreground: #dddde1;
+  --popover: #0c0c0e;
+  --popover-foreground: #f1f1f3;
+  --primary: #4f8ff7;
+  --primary-foreground: #02040a;
+  --secondary: #161619;
+  --secondary-foreground: #c9c9ce;
+  --muted: #121214;
+  --muted-foreground: #7a7a83;
+  --accent: #18181b;
+  --accent-foreground: #dddde1;
+  --destructive: #ff5a6a;
+  --success: #2fd98a;
+  --warning: #f0b440;
+  /* Signal green — the monitoring/live accent (matches the brand mark). */
+  --signal: #36e29a;
   --border: rgba(255, 255, 255, 0.06);
   --input: rgba(255, 255, 255, 0.08);
-  --ring: #4f6ef7;
-  --chart-1: #10b981;
-  --chart-2: #6366f1;
-  --chart-3: #a855f7;
-  --chart-4: #f59e0b;
-  --chart-5: #06b6d4;
-  --radius: 0.875rem;
-  --sidebar: #141420;
-  --sidebar-foreground: #8888a0;
-  --sidebar-primary: #4f6ef7;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1e1e2e;
-  --sidebar-accent-foreground: #d0d0dc;
+  --ring: #4f8ff7;
+  /* Restrained cool palette + signal green + one warm. */
+  --chart-1: #4f8ff7;
+  --chart-2: #36e29a;
+  --chart-3: #7c83ff;
+  --chart-4: #f0b440;
+  --chart-5: #4a5573;
+  --radius: 1rem;
+  --sidebar: #050506;
+  --sidebar-foreground: #7b7b83;
+  --sidebar-primary: #4f8ff7;
+  --sidebar-primary-foreground: #02040a;
+  --sidebar-accent: #151517;
+  --sidebar-accent-foreground: #c9c9ce;
   --sidebar-border: rgba(255, 255, 255, 0.05);
-  --sidebar-ring: #4f6ef7;
+  --sidebar-ring: #4f8ff7;
+  --liquid-color: #36e29a;
 }
 
 @layer base {
@@ -89,34 +111,236 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   html {
     @apply font-sans;
   }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
 }
 
-/* Recommended backlink — soft glow + pulse to draw attention */
-@keyframes recommendedGlow {
-  0%, 100% {
-    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.18), 0 0 12px rgba(16, 185, 129, 0.0);
-    background-color: rgba(16, 185, 129, 0.03);
+/* ── Command-center surface utilities ─────────────────────────────────── */
+
+/* Faint blueprint grid + top vignette for the main monitoring surface. */
+.cc-grid {
+  /* Pure black — no gradient wash. */
+  background-color: transparent;
+}
+
+/* Ambient: two slow-drifting glows behind everything (depth, not noise). */
+@keyframes ambientDrift {
+  0% {
+    transform: translate3d(-3%, -2%, 0) scale(1);
   }
   50% {
-    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.5), 0 0 16px rgba(16, 185, 129, 0.35);
-    background-color: rgba(16, 185, 129, 0.10);
+    transform: translate3d(3%, 3%, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(-3%, -2%, 0) scale(1);
+  }
+}
+/* Ambient background glow removed — flat black background per design. */
+
+/* Soft, rounded, elevated card — clean & modern (reference style). */
+.cc-panel {
+  position: relative;
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1.4rem;
+  box-shadow: var(--shadow-card);
+}
+
+/* Clean small-caps section label (no longer mono). */
+.cc-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--muted-foreground) 92%, transparent);
+}
+
+/* Glow helpers. */
+.glow-signal {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--signal) 40%, transparent),
+    0 0 18px -3px color-mix(in srgb, var(--signal) 55%, transparent);
+}
+.text-glow-signal {
+  color: var(--signal);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--signal) 55%, transparent);
+}
+.text-glow-primary {
+  text-shadow: 0 0 16px color-mix(in srgb, var(--primary) 55%, transparent);
+}
+
+/* Live status dot — breathing green ring. */
+@keyframes signalPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--signal) 55%, transparent);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--signal) 0%, transparent);
+    opacity: 0.75;
+  }
+}
+.signal-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--signal);
+  animation: signalPulse 2s ease-in-out infinite;
+}
+
+/* Logo on dark: drop the black backplate, keep the green glow. */
+.logo-screen {
+  mix-blend-mode: screen;
+}
+
+/* ── Liquid button: water pools up from the bottom on click ───────────── */
+@keyframes liquidFill {
+  0% {
+    transform: translateY(100%);
+    opacity: 0.95;
+  }
+  52% {
+    transform: translateY(-3%);
+    opacity: 1;
+  }
+  66% {
+    transform: translateY(0%);
+    opacity: 1;
+  }
+  82% {
+    transform: translateY(0%);
+    opacity: 0.78;
+  }
+  100% {
+    transform: translateY(0%);
+    opacity: 0;
+  }
+}
+@keyframes liquidSlosh {
+  0%,
+  100% {
+    border-radius: 46% 54% 0 0 / 20px 24px 0 0;
+    transform: translateX(-2%);
+  }
+  50% {
+    border-radius: 56% 44% 0 0 / 24px 20px 0 0;
+    transform: translateX(2%);
+  }
+}
+.liquid-fill {
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  bottom: 0;
+  height: 122%;
+  transform: translateY(100%);
+  background: var(--liquid-color);
+  border-radius: 46% 54% 0 0 / 20px 24px 0 0;
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform, opacity;
+}
+[data-filling="true"] .liquid-fill {
+  animation: liquidFill 760ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    liquidSlosh 760ms ease-in-out;
+}
+
+/* Recommended backlink — soft glow + pulse (signal green). */
+@keyframes recommendedGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(54, 226, 154, 0.18), 0 0 12px rgba(54, 226, 154, 0);
+    background-color: rgba(54, 226, 154, 0.03);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgba(54, 226, 154, 0.5), 0 0 16px rgba(54, 226, 154, 0.3);
+    background-color: rgba(54, 226, 154, 0.09);
   }
 }
 .recommended-backlink {
   animation: recommendedGlow 2.4s ease-in-out infinite;
 }
 @keyframes recommendedPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.55; transform: scale(0.92); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
 }
 .recommended-pulse {
   animation: recommendedPulse 1.6s ease-in-out infinite;
 }
+
+@keyframes riseIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise-in {
+  animation: riseIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Recommended ("狙い目") target reticle — a radar ping ring expands outward. */
+@keyframes targetPing {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.9;
+  }
+  70% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+.target-ping {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: targetPing 1.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  [data-filling="true"] .liquid-fill {
+    animation: none;
+    opacity: 0;
+  }
   .recommended-backlink,
-  .recommended-pulse { animation: none; }
+  .recommended-pulse,
+  .rise-in,
+  .target-ping,
+  .signal-dot {
+    animation: none;
+  }
 }
