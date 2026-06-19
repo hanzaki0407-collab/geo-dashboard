@@ -15,9 +15,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GEO Dashboard | 主要LLMブランド可視性レポート",
+  title: "LLM分析 | 主要LLMブランド可視性レポート",
   description:
-    "ChatGPT、Gemini、Google AIモード、Claude における自社ブランドの言及状況・引用元・紹介内容を一画面で把握するGEOダッシュボード",
+    "ChatGPT、Gemini、Google AIモード、Claude における自社ブランドの言及状況・引用元・紹介内容を一画面で把握するLLM分析",
 };
 
 export default function RootLayout({

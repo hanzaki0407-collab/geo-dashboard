@@ -1,4 +1,4 @@
-# GEO Dashboard
+# LLM分析 (llm-analytics)
 
 主要LLM（ChatGPT、Gemini、Google AIモード、Claude）における自社クライアントのブランド言及・引用元・紹介内容を可視化する週次ダッシュボード。
 

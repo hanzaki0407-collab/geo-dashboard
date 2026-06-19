@@ -17,7 +17,7 @@ export function Topbar({ lastWeekStart }: TopbarProps) {
       <div className="flex items-center gap-2.5">
         <span className="signal-dot" aria-hidden />
         <h1 className="text-[14px] font-semibold tracking-tight text-foreground">
-          GEO Monitor
+          LLM分析
         </h1>
         <span
           className="rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide text-signal"

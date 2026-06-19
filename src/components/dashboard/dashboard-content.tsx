@@ -202,7 +202,7 @@ export function DashboardContent({
       )}
 
       <footer className="pt-2 pb-4 text-center text-[11px] text-muted-foreground/60">
-        GEO Dashboard · Powered by Next.js + Supabase · FTG Company
+        LLM分析 · Powered by Next.js + Supabase · FTG Company
       </footer>
     </div>
   );
