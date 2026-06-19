@@ -1,0 +1,46 @@
+name: Supabase Keepalive
+
+# 無料/nano枠の Supabase プロジェクトは「7日間アクセスなし」で自動 pause される。
+# 月次収集（monthly-collect.yml）だけだと月1回しかDBを叩かず、収集を止めている期間に
+# 自動 pause→ダッシュボードが落ちる。週1回の軽量SELECTでDBアクティビティを発生させ、
+# 自動 pause を防ぐ。
+#
+# 必要な GitHub Secrets（既存の monthly-collect.yml と共通）:
+#   - NEXT_PUBLIC_SUPABASE_URL
+#   - SUPABASE_SERVICE_ROLE_KEY
+
+on:
+  schedule:
+    # 毎週月曜 00:00 UTC = 09:00 JST（7日の pause 判定に十分間に合う間隔）
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Supabase (lightweight SELECT to register DB activity)
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo "::error::Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY secret."
+            exit 1
+          fi
+          echo "Pinging Supabase REST API to keep the project active..."
+          HTTP_CODE=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
+            "${SUPABASE_URL}/rest/v1/companies?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
+          echo "HTTP ${HTTP_CODE}"
+          cat /tmp/resp.json || true
+          echo ""
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✅ Supabase responded OK — project is active."
+          else
+            echo "::error::Unexpected status ${HTTP_CODE}. The project may be paused — restore it in the Supabase dashboard."
+            exit 1
+          fi
